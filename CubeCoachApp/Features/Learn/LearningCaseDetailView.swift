@@ -38,11 +38,12 @@ struct LearningCaseDetailView: View {
     private var learningPurpose: some View {
         CoachCard {
             VStack(alignment: .leading, spacing: 8) {
-                Label("보고 이해한 뒤 따라 돌리기", systemImage: "hand.tap")
+                Label("보고 따라 돌리기", systemImage: "hand.tap")
                     .font(.headline)
-                Text("모든 단서를 보며 천천히 따라 돌리고, 손의 순서를 익혀 보세요.")
+                Text("한 동작씩 실물 큐브로 따라 하세요.")
                     .foregroundStyle(.secondary)
-                Text("학습 화면만 본 것은 복습 기록으로 계산하지 않아요.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("보기만 하면 복습 기록에 남지 않아요.")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Color.coachAccent)
             }
@@ -53,15 +54,15 @@ struct LearningCaseDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             learningSectionHeader(
                 step: "1",
-                title: "시작 상태 맞추기",
-                detail: "전개도와 중심 색을 기준으로 큐브를 같은 방향에 놓으세요."
+                title: "시작 상태 만들기",
+                detail: "센터 색에 맞춰 큐브 방향을 잡으세요."
             )
 
             CoachCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("기준 방향", systemImage: "scope")
                         .font(.headline)
-                    Text("흰색 U는 위, 초록색 F는 앞을 향하게 두세요.")
+                    Text("U는 위, F는 앞.")
                         .font(.subheadline)
                     CubeNetView(
                         facelets: exercise.startState.facelets,
@@ -74,9 +75,10 @@ struct LearningCaseDetailView: View {
             if !exercise.setup.moves.isEmpty {
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("맞춰진 큐브에서 아래 단계를 따라 돌리면 이 연습의 시작 상태가 됩니다.")
+                        Text("맞춰진 큐브에서 아래 동작을 따라 하세요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                         LearningPlaybackView(
                             title: "시작 상태 만들기",
                             snapshots: exercise.setupPlayback,
@@ -100,7 +102,7 @@ struct LearningCaseDetailView: View {
             learningSectionHeader(
                 step: "2",
                 title: "모양 알아보기",
-                detail: "공식을 고르기 전에 이 단서를 먼저 찾으세요."
+                detail: "공식보다 모양을 먼저 기억하세요."
             )
 
             CoachCard {
@@ -121,12 +123,12 @@ struct LearningCaseDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             learningSectionHeader(
                 step: "3",
-                title: "시범을 보며 따라 돌리기",
-                detail: "선택된 한 동작의 전후 상태를 보고, 실제 큐브도 같은 방향으로 돌리세요."
+                title: "공식 따라 하기",
+                detail: "기호와 전후 그림을 보며 한 동작씩 돌리세요."
             )
 
             LearningPlaybackView(
-                title: "전체 공식 · \(learningCase.algorithm)",
+                title: "공식",
                 snapshots: exercise.solutionPlayback,
                 moves: exercise.solution.moves,
                 selectedStep: $solutionStep
@@ -137,14 +139,15 @@ struct LearningCaseDetailView: View {
     private var verificationSection: some View {
         CoachCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("이제 가리고 떠올려 보세요", systemImage: "eye.slash")
+                Label("이제 공식 없이 돌려 보세요", systemImage: "eye.slash")
                     .font(.headline)
-                Text("복습에서는 시작 상태만 보고, 모양 인식과 회전 순서를 직접 떠올립니다. 결과까지 확인한 시도만 복습 기록에 반영됩니다.")
+                Text("시작 상태만 보고 돌린 뒤, 목표 그림과 비교하세요.")
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 NavigationLink {
                     TrainerView(initialCases: [learningCase], mode: .review)
                 } label: {
-                    Label("공식 가리고 복습하기", systemImage: "brain.head.profile")
+                    Label("공식 없이 복습하기", systemImage: "brain.head.profile")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -169,6 +172,7 @@ struct LearningCaseDetailView: View {
             Text(detail)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }
@@ -194,7 +198,25 @@ private struct LearningPlaybackView: View {
                     Label(title, systemImage: "play.rectangle")
                         .font(.headline)
 
-                    Text("\(selectedMoveIndex + 1)단계 · \(moves[selectedMoveIndex].notation)")
+                    ScrollView(.horizontal) {
+                        Text(
+                            moves
+                                .map(\.notation)
+                                .joined(separator: " ")
+                        )
+                        .font(.title3.monospaced().bold())
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
+                    .scrollIndicators(.hidden)
+                    .accessibilityLabel(
+                        "공식 \(moves.map(\.notation).joined(separator: " "))"
+                    )
+
+                    Text(
+                        "\(selectedMoveIndex + 1) / \(moves.count) · "
+                            + moves[selectedMoveIndex].notation
+                    )
                         .font(.title3.monospaced().bold())
                         .accessibilityLabel(
                             "전체 \(moves.count)단계 중 \(selectedMoveIndex + 1)단계, \(moves[selectedMoveIndex].notation)"
@@ -215,22 +237,22 @@ private struct LearningPlaybackView: View {
     private var beforeAfterComparison: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: 12) {
-                cubeState(title: "돌리기 전", snapshotIndex: selectedMoveIndex)
+                cubeState(title: "전", snapshotIndex: selectedMoveIndex)
                 Image(systemName: "arrow.right")
                     .font(.title2.bold())
                     .foregroundStyle(Color.coachAccent)
                     .frame(maxHeight: .infinity)
                     .accessibilityHidden(true)
-                cubeState(title: "돌린 후", snapshotIndex: selectedMoveIndex + 1)
+                cubeState(title: "후", snapshotIndex: selectedMoveIndex + 1)
             }
 
             VStack(spacing: 12) {
-                cubeState(title: "돌리기 전", snapshotIndex: selectedMoveIndex)
+                cubeState(title: "전", snapshotIndex: selectedMoveIndex)
                 Image(systemName: "arrow.down")
                     .font(.title2.bold())
                     .foregroundStyle(Color.coachAccent)
                     .accessibilityHidden(true)
-                cubeState(title: "돌린 후", snapshotIndex: selectedMoveIndex + 1)
+                cubeState(title: "후", snapshotIndex: selectedMoveIndex + 1)
             }
         }
         .accessibilityElement(children: .contain)

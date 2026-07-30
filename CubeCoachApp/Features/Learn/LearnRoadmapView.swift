@@ -6,12 +6,25 @@ struct LearnRoadmapView: View {
     var body: some View {
         List {
             Section {
-                Text("그림과 동작을 보며 따라 하세요. 익숙해지면 복습에서 공식을 가리고 직접 돌려 보세요.")
+                Label("그림을 보고 실물 큐브로 따라 돌려요.", systemImage: "cube")
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("학습 안내. 그림과 동작을 보며 따라 한 뒤, 복습에서 공식을 가리고 직접 돌려 보세요.")
-                Text("학습 화면만 본 것은 복습 기록으로 계산하지 않아요.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Label("익숙해지면 공식 없이 복습해요.", systemImage: "eye.slash")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("보기만 하면 복습 기록에 남지 않아요.")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Color.coachAccent)
+            }
+
+            Section {
+                DisclosureGroup {
+                    NotationPrimerView(presentation: .detailed, showsTitle: false)
+                        .padding(.vertical, 8)
+                } label: {
+                    Label("기호 읽는 법", systemImage: "textformat")
+                        .font(.headline)
+                }
             }
 
             ForEach(Array(RoadmapStageUI.all.enumerated()), id: \.element.id) { index, stage in
@@ -29,9 +42,10 @@ struct LearnRoadmapView: View {
                             Text(stage.title).font(.headline)
                             Text(stage.subtitle).font(.subheadline).foregroundStyle(.secondary)
                             let completed = stage.caseIDs.filter { store.progressValue(for: $0).repetitions > 0 }.count
-                            Label("연습 케이스 \(stage.caseIDs.count)개 · 복습 기록 \(completed)개", systemImage: completed == stage.caseIDs.count ? "checkmark.circle.fill" : "circle.dashed")
+                            Label("공식 \(stage.caseIDs.count)개 · 복습 \(completed)개", systemImage: completed == stage.caseIDs.count ? "checkmark.circle.fill" : "circle.dashed")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(completed == stage.caseIDs.count ? Color.coachSuccess : Color.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .padding(.vertical, 6)
@@ -66,10 +80,10 @@ private struct StageDetailView: View {
                         }
                     }
                     Text(learningCase.family).font(.subheadline).foregroundStyle(.secondary)
-                    Text("시작 상태, 핵심 단서, 동작 전후를 차례로 확인해요.")
+                    Text("시작 상태와 동작 전후를 확인해요.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 4)
             }

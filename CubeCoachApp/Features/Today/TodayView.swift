@@ -14,7 +14,7 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("오늘 할 일")
                         .font(.largeTitle.bold())
-                    Text("복습할 공식을 확인하고, 솔브 기록을 이어가세요.")
+                    Text("복습하고 타이머 기록을 이어가세요.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -26,10 +26,11 @@ struct TodayView: View {
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                         Text(
                             store.dueCases.isEmpty
-                                ? "오늘 복습은 끝났어요. 자유 연습으로 감각을 이어가세요."
-                                : "시작 상태를 보고 공식을 떠올린 뒤, 실물 큐브로 확인하세요."
+                                ? "오늘 복습은 끝났어요. 타이머로 이어가세요."
+                                : "시작 상태만 보고 실물 큐브로 돌려 보세요."
                         )
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                         if !store.dueCases.isEmpty {
                             NavigationLink {
                                 TrainerView(initialCases: store.dueCases)

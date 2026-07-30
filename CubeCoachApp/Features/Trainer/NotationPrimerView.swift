@@ -8,6 +8,7 @@ struct NotationPrimerView: View {
     }
 
     var presentation: Presentation = .detailed
+    var showsTitle = true
 
     private let faces: [(letter: String, koreanName: String)] = [
         ("U", "윗면"),
@@ -20,8 +21,10 @@ struct NotationPrimerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: presentation == .compact ? 8 : 12) {
-            Label("기호와 보는 방향", systemImage: "viewfinder")
-                .font(.headline)
+            if showsTitle {
+                Label("기호 읽는 법", systemImage: "textformat")
+                    .font(.headline)
+            }
 
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: presentation == .compact ? 76 : 96), spacing: 8)],
@@ -42,24 +45,62 @@ struct NotationPrimerView: View {
                 }
             }
 
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "arrow.clockwise.circle.fill")
-                    .foregroundStyle(Color.coachAccent)
-                    .accessibilityHidden(true)
-                Text("시계 방향은 돌리는 면을 정면으로 바라봤을 때를 기준으로 판단해요.")
-                    .font(presentation == .compact ? .footnote : .subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
+            Text("돌릴 면을 정면으로 보고 방향을 판단해요.")
+                .font(presentation == .compact ? .footnote : .subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 82), spacing: 8)],
+                spacing: 8
+            ) {
+                notationCard(
+                    notation: "R",
+                    description: "시계 90°",
+                    symbol: "arrow.clockwise"
+                )
+                notationCard(
+                    notation: "R'",
+                    description: "반시계 90°",
+                    symbol: "arrow.counterclockwise"
+                )
+                notationCard(
+                    notation: "R2",
+                    description: "180°",
+                    symbol: "arrow.triangle.2.circlepath"
+                )
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("방향 기준. 시계 방향은 돌리는 면을 정면으로 바라봤을 때를 기준으로 판단합니다.")
 
             if presentation == .detailed {
-                Text("프라임 기호(′)는 반시계 방향 90도, 숫자 2는 180도 회전을 뜻해요.")
+                Text("반시계 회전은 글자 뒤에 ' 기호를 붙여요.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel("프라임 기호는 반시계 방향 90도, 숫자 2는 180도 회전을 뜻합니다.")
             }
         }
+    }
+
+    private func notationCard(
+        notation: String,
+        description: String,
+        symbol: String
+    ) -> some View {
+        VStack(spacing: 5) {
+            Text(notation)
+                .font(.title3.monospaced().bold())
+                .foregroundStyle(Color.coachAccent)
+            Image(systemName: symbol)
+                .font(.caption.bold())
+                .accessibilityHidden(true)
+            Text(description)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(notation), \(description)")
     }
 }

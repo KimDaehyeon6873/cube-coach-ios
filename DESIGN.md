@@ -164,7 +164,8 @@
 - Typography:
   - Dynamic Type을 지원하는 시스템 글꼴을 사용한다.
   - 공식은 모노스페이스 또는 rounded 디자인과 tabular 숫자를 사용하되 본문 접근성을 해치지 않는다.
-  - 프라임(`′`)과 숫자(`2`)가 작은 크기에서도 구분되게 한다.
+  - WCA 표준 아포스트로피(`'`)와 숫자(`2`)가 작은 크기에서도 구분되게 한다.
+  - 공식 본문은 `R U R' U'`처럼 표준 기호만 한 줄로 표시하고, 방향 설명은 `기호 읽는 법`에 모은다.
 - Spacing/layout rhythm:
   - 4pt 기반 간격, 주요 화면 16pt 여백, 섹션 간 20–24pt
   - 한 카드 안에는 인식·힌트·공식 중 현재 필요한 층만 표시
@@ -192,7 +193,7 @@
   - `TrainerView`: 사용자-facing `복습` 화면. 시작 상태, 시각 인식 판별, 단계별 도움, 실제 큐브 수행과 수동 결과 비교
   - `MoveTimelineView`: 파싱된 move, 이전/다음 2D 상태, 첫/마지막 단계와 자동 재생
   - `CubeNetView`: 고정 면 배치, 색과 방향 문자·테두리, 변경 스티커 강조와 VoiceOver 면 설명
-  - `NotationPrimerView`: 기준 면, 시계 방향 판정과 기본 표기 안내
+  - `NotationPrimerView`: 기준 면, 시계 방향 판정과 WCA 기본 표기(`R`, `R'`, `R2`) 안내
   - `ScanPoseGuide`: 포즈 A/B, 검출 면, 조명·거리 피드백
   - `ScanEntryChoice`: 카메라 권한 요청 전에 촬영과 54칸 직접 입력을 같은 첫 viewport에서 선택한다.
   - `CameraCaptureView`: navigation/tab bar·카드·스크롤 없는 전체 화면 AVFoundation 프리뷰. 상단은 닫기·`1/2` 또는 `2/2`·아이콘과 문장으로 된 상태, 중앙은 얇은 3면 외곽선과 U/F/R 또는 D/L/B, 하단은 한 줄 방향 안내·76pt 원형 셔터·직접 입력만 표시한다.

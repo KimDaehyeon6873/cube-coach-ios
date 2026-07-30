@@ -119,7 +119,10 @@ struct TrainerView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("스캔 진단 기반 대표 연습", systemImage: "camera.metering.matrix")
                             .font(.headline)
-                        Text("아래 전개도는 촬영한 54칸을 그대로 재현한 화면이 아닙니다. 스캔에서 진단한 학습 단계에 맞춘 대표 케이스예요.")
+                        Text("촬영 결과를 그대로 그린 화면은 아니에요.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text("진단 단계에 맞춘 대표 연습이에요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -128,12 +131,15 @@ struct TrainerView: View {
 
             CoachCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("1. 시작 상태 맞추기")
+                    Text("1 · 시작 상태 만들기")
                         .font(.title2.bold())
-                    Label("흰색 U는 위 · 초록색 F는 앞", systemImage: "viewfinder")
+                    Label("U 위 · F 앞", systemImage: "viewfinder")
                         .font(.subheadline.weight(.semibold))
                     CubeNetView(facelets: exercise.startState.facelets, presentation: .full)
-                    Text("공식은 아직 숨겨져 있어요. 전개도와 같은 상태를 만든 뒤 다음으로 넘어가세요.")
+                    Text("전개도와 같은 상태를 만드세요.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text("공식은 아직 숨겨져 있어요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -148,13 +154,10 @@ struct TrainerView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("시작 상태 만드는 법", systemImage: "arrow.triangle.2.circlepath")
                             .font(.headline)
-                        Text(exercise.acquisitionSupportLabel)
+                        Text("도움을 사용한 복습으로 기록돼요.")
                             .font(.subheadline.weight(.semibold))
-                        Text("완성된 큐브에서 시작 상태를 만드는 동작이에요. 이 단계를 보면 도움을 사용한 복습으로 기록해요.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
                         playbackComparison(
-                            title: "완성 상태에서 연습 상태로",
+                            title: "시작 상태 공식",
                             snapshots: exercise.setupPlayback,
                             moves: exercise.setup.moves,
                             selectedStep: $setupStep,
@@ -200,9 +203,14 @@ struct TrainerView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Text("전개도와 같은 상태라면 ‘이미 맞췄어요’를 누르세요. 만드는 법을 보면 도움을 사용한 복습으로 기록해요.")
+                Text("상태가 같으면 ‘이미 맞췄어요’를 누르세요.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("만드는 법을 보면 도움 사용으로 기록돼요.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -279,8 +287,8 @@ struct TrainerView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(learningCase.title).font(.title2.bold())
                     CubeNetView(facelets: exercise.startState.facelets, presentation: .full)
-                    Label("흰색 U를 위로, 초록색 F를 앞으로 잡으세요.", systemImage: "viewfinder")
-                        .font(.subheadline.weight(.semibold))
+            Label("U 위 · F 앞", systemImage: "viewfinder")
+                .font(.subheadline.weight(.semibold))
                 }
             }
 
@@ -315,7 +323,7 @@ struct TrainerView: View {
                 .font(.subheadline)
         }
         if hint >= .h2 {
-            Label("흰색 U는 위, 초록색 F는 앞에 두세요.", systemImage: "rotate.3d")
+            Label("U 위 · F 앞", systemImage: "rotate.3d")
                 .font(.subheadline)
             NotationPrimerView(presentation: .compact)
         }
@@ -360,8 +368,9 @@ struct TrainerView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("실물 큐브를 돌리세요").font(.title2.bold())
                         Label("U 위 · F 앞", systemImage: "viewfinder")
-                        Text("공식은 보이지 않아요. 기억한 대로 돌린 뒤 완료를 누르세요.")
+                        Text("공식 없이 돌린 뒤 완료를 누르세요.")
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Button("돌리기 완료") { physicalExecutionFinished = true }
@@ -373,7 +382,7 @@ struct TrainerView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("그림과 같은지 확인하세요").font(.title2.bold())
                         CubeNetView(facelets: finalProjectedFacelets(exercise: exercise), presentation: .full)
-                        Text("목표 상태와 내 큐브의 색·조각 위치를 비교하세요.")
+                        Text("내 큐브를 목표 그림과 비교하세요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -466,7 +475,7 @@ struct TrainerView: View {
             if session.reviewedCount == 0 {
                 Text(emptySessionDescription)
             } else {
-                Text("\(session.reviewedCount)개 공식을 떠올리고 결과까지 확인했어요.")
+                Text("공식 \(session.reviewedCount)개의 결과를 확인했어요.")
             }
         }
     }
@@ -621,26 +630,41 @@ struct TrainerView: View {
             CoachCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Label(title, systemImage: "rectangle.split.2x1").font(.headline)
-                    Text("돌리기 전  →  \(moveInstruction(move))  →  돌린 후")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityElement(children: .ignore)
+
+                    ScrollView(.horizontal) {
+                        Text(
+                            moves
+                                .map(\.notation)
+                                .joined(separator: " ")
+                        )
+                        .font(.title3.monospaced().bold())
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
+                    .scrollIndicators(.hidden)
                     .accessibilityLabel(
-                        "돌리기 전 상태에서 \(moveInstruction(move)) 동작을 하면 돌린 후 상태가 됩니다."
+                        "공식 \(moves.map(\.notation).joined(separator: " "))"
                     )
+
+                    Text("전  →  \(move.notation)  →  후")
+                        .font(.subheadline.monospaced().bold())
+                        .frame(maxWidth: .infinity)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            "돌리기 전 상태에서 \(moveInstruction(move)) 동작을 하면 돌린 후 상태가 됩니다."
+                        )
                     HStack(alignment: .top, spacing: 12) {
                         VStack {
-                            Text("돌리기 전").font(.caption.bold())
+                            Text("전").font(.caption.bold())
                             CubeNetView(
                                 facelets: before,
                                 presentation: .compact
                             )
                         }
                         VStack {
-                            Text("돌린 후").font(.caption.bold())
+                            Text("후").font(.caption.bold())
                             CubeNetView(
                                 facelets: after,
                                 presentation: .compact
@@ -658,12 +682,12 @@ struct TrainerView: View {
         } else {
             CoachCard {
                 Label(
-                    "이 연습의 단계 상태를 불러오지 못했습니다. 다른 케이스를 선택해 주세요.",
+                    "동작 그림을 불러오지 못했어요.",
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.orange)
-                .accessibilityLabel("연습 콘텐츠 오류. 단계 상태를 불러오지 못했습니다.")
+                .accessibilityLabel("동작 그림을 불러오지 못했습니다.")
             }
         }
     }

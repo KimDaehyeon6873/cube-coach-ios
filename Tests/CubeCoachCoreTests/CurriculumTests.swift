@@ -45,7 +45,7 @@ import Testing
     let antiSune = try #require(samples["oll-antisune"])
     let antiSuneState = try #require(antiSune.exercise).compile().startState
     #expect(antiSune.notation == "R U2 R' U' R U' R'")
-    #expect(antiSune.recognitionHint == "윗색 코너 하나가 오른쪽 뒤.")
+    #expect(antiSune.recognitionHint == "윗색 코너 하나는 오른쪽 뒤.")
     #expect(antiSuneState.faceletString == "FUUUUURUBULLRRRRRRUFLFFFFFFDDDDDDDDDUBBLLLLLLFRRBBBBBB")
     let upCornerIndices = [0, 2, 6, 8] // UBL, UBR, UFL, UFR in URFDLB facelet order.
     let antiSuneFacelets = Array(antiSuneState.faceletString)

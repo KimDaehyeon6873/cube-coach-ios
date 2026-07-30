@@ -193,21 +193,14 @@ private struct MoveTile: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(move.notation)
-                    .font(.title3.monospaced().bold())
-                Text(move.amount.directionSymbol)
-                    .font(.caption.bold())
-            }
-            Text(move.amount.shortKoreanDescription)
-                .font(.caption2.weight(.semibold))
+            Text(move.notation)
+                .font(.title3.monospaced().bold())
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
         }
         .foregroundStyle(isSelected ? Color.white : Color.primary)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
-        .frame(minWidth: 72, minHeight: 62)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(minWidth: 56, minHeight: 52)
         .background(
             isSelected ? Color.coachAccent : Color.secondary.opacity(0.12),
             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -246,22 +239,6 @@ private extension MoveSymbol {
 }
 
 private extension TurnAmount {
-    var directionSymbol: String {
-        switch self {
-        case .clockwise: "↻"
-        case .half: "↻²"
-        case .counterclockwise: "↺"
-        }
-    }
-
-    var shortKoreanDescription: String {
-        switch self {
-        case .clockwise: "시계 90°"
-        case .half: "180°"
-        case .counterclockwise: "반시계 90°"
-        }
-    }
-
     var fullKoreanDescription: String {
         switch self {
         case .clockwise: "시계 방향 90도"

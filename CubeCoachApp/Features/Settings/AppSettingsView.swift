@@ -26,7 +26,7 @@ struct AppSettingsView: View {
             } header: {
                 Text("화면 모드")
             } footer: {
-                Text("시스템을 선택하면 iPhone의 화면 모드 설정을 따라요.")
+                Text("시스템 모드는 iPhone 설정을 따라요.")
             }
 
             Section("개인정보 처리") {
@@ -34,9 +34,10 @@ struct AppSettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("카메라 이미지")
                             .font(.headline)
-                        Text("촬영 이미지는 기기 안에서만 처리하고 저장하거나 전송하지 않아요.")
+                        Text("사진은 기기에서만 처리하며 저장·전송하지 않아요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 } icon: {
                     Image(systemName: "camera.fill")
@@ -48,9 +49,13 @@ struct AppSettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("학습 및 솔브 기록")
                             .font(.headline)
-                        Text("학습 진행과 타이머 기록은 이 기기에만 저장해요. 계정, 광고, 분석 SDK, 클라우드 동기화는 사용하지 않아요.")
+                        Text("학습·타이머 기록은 이 기기에만 저장해요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("계정·광고·분석·동기화 없음")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.coachAccent)
                     }
                 } icon: {
                     Image(systemName: "iphone")
@@ -62,7 +67,7 @@ struct AppSettingsView: View {
             Section("정책") {
                 if let privacyPolicyURL {
                     Link(destination: privacyPolicyURL) {
-                        Label("개인정보 처리방침 열기", systemImage: "safari")
+                        Label("개인정보 처리방침", systemImage: "safari")
                     }
                     .accessibilityHint("웹 브라우저에서 공개 개인정보 처리방침을 엽니다")
                 }
@@ -74,7 +79,11 @@ struct AppSettingsView: View {
                 }
                 .accessibilityHint("학습 진행과 솔브 기록을 이 기기에서 영구 삭제합니다")
             } footer: {
-                Text("학습 진행, 솔브 기록, 복습 횟수, 일일 목표, 화면 모드 설정과 손상 데이터 복구용 사본을 모두 삭제합니다. 이 작업은 되돌릴 수 없습니다.")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("학습·솔브 기록과 목표를 삭제해요.")
+                    Text("화면 모드와 복구 사본도 초기화해요.")
+                    Text("삭제 후에는 되돌릴 수 없어요.")
+                }
             }
         }
         .navigationTitle("설정")
@@ -87,12 +96,12 @@ struct AppSettingsView: View {
                 showsDeletionResult = true
             }
         } message: {
-            Text("학습 진행, 기록, 목표, 화면 모드 설정과 복구용 사본이 이 기기에서 영구 삭제됩니다.")
+            Text("이 기기의 기록과 설정이 영구 삭제돼요.")
         }
         .alert("삭제 완료", isPresented: $showsDeletionResult) {
             Button("확인", role: .cancel) {}
         } message: {
-            Text("모든 로컬 학습 및 솔브 데이터가 삭제되었습니다.")
+            Text("이 기기의 기록과 설정을 삭제했어요.")
         }
     }
 }
