@@ -111,6 +111,7 @@
 
 ### 2026-07-31 로컬 검증 증거
 
+- 단색 와이어 큐브 아이콘으로 단순화한 뒤 기본·다크·틴트 1024×1024 자산과 60×60 축소본에서 형태를 확인했고, 모든 픽셀의 alpha가 255임을 검사했다. Release 테스트는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-simple-icon-test.log`), 최종 Asset Catalog를 포함한 strict concurrency complete·warnings-as-errors Simulator 빌드가 성공했다(`/tmp/cubecoach-simple-icon-build.log`). generic iOS 무서명 Release archive도 Store validation을 통과했다(`/tmp/CubeCoachSimpleIconArchive.1e3V4D/CubeCoach.xcarchive`, `/tmp/cubecoach-simple-icon-archive.log`).
 - 앱 내부 화면 모드는 `시스템`, `라이트`, `다크` 세 가지이며 `UserDefaults`에 로컬 저장된다. iPhone 13 mini에서 기기 라이트·앱 다크, iPhone 17 Pro에서 기기 다크·앱 라이트 강제 조합을 확인했다(`/tmp/cubecoach-appearance/13mini-dark-argument.png`, `/tmp/cubecoach-appearance/17pro-light-argument.png`). 최종 strict concurrency complete·warnings-as-errors Simulator 빌드가 성공했고(`/tmp/cubecoach-appearance-build.log`), Release 테스트는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했다(`/tmp/cubecoach-appearance-test.log`). generic iOS 무서명 Release archive도 Store validation을 통과했다(`/tmp/CubeCoachAppearanceFinalArchive.5male6/CubeCoach.xcarchive`, `/tmp/cubecoach-appearance-archive.log`).
 - Malta-informed 브랜드 컬러는 공식 국기·George Cross·Maltese Cross·흰색/빨강 분할을 사용하지 않고, 지중해와 석회암의 일반적 색 대비만 독립적으로 해석했다. Malta 정부는 국기·문장의 디자인 편입에 권한 조건을 명시하므로 앱과 메타데이터에서 공식성·제휴를 주장하지 않는다. 결정 근거와 출처는 `docs/BRAND_COLOR_RESEARCH.md`에 기록했다.
 - Harbour Blue 적용 후 iPhone 13 mini 라이트·다크와 iPhone 17 Pro 고대비 화면에서 주요 CTA·선택 탭·아이콘을 확인했다. Release + strict concurrency complete + warnings-as-errors `swift test`는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-malta-color-test.log`), generic iOS 무서명 Release archive도 Store validation 단계를 통과했다(`/tmp/CubeCoachMaltaColorArchive.25FPRT/CubeCoach.xcarchive`, `/tmp/cubecoach-malta-color-archive.log`).
@@ -122,7 +123,7 @@
 - 내 큐브 확인 진입 재기획 후 `swift test`는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-scan-entry-final-test.log`), strict concurrency complete·warnings-as-errors Simulator 빌드도 성공했다(`/tmp/cubecoach-scan-entry-final3-build.log`).
 - 같은 변경의 generic iOS Release archive(`/tmp/CubeCoachScanEntryFinalArchive.8y24FQ/CubeCoach.xcarchive`, 로그 `/tmp/cubecoach-scan-entry-final-archive.log`)가 Store validation 단계를 통과했다. 이는 `CODE_SIGNING_ALLOWED=NO`인 로컬 구조 검증용이다.
 - UI·UX 라이팅·브랜드 감사 결과와 실기기 전 필수 항목을 `docs/UI_UX_AUDIT.md`에 기록했다. iPhone SE 3세대 Simulator의 라이트·다크 모드에서 오늘·학습·연습·기록 화면을 확인했고, 연습 화면은 스크롤 없이 한 화면에 유지됐다.
-- 앱 아이콘 기본·다크·틴트 자산은 각각 1024×1024이며 모든 픽셀의 alpha가 255임을 확인했다. 자동 해결을 암시하던 순환 화살표·체크·그라디언트를 제거하고, 흰색 U 기준과 회전 대상 레이어를 표현했다.
+- 앱 아이콘 기본·다크·틴트 자산은 각각 1024×1024이며 모든 픽셀의 alpha가 255임을 확인했다. 자동 해결을 암시하는 순환 화살표·체크뿐 아니라 면색, 스티커 격자와 회전 강조도 제거하고, 단색 와이어 큐브만 사용한다.
 - UI 감사 후 Release + strict concurrency complete + warnings-as-errors `swift test`: Swift Testing 115개와 XCTest 4개가 각각 실패 없이 통과(`/tmp/cubecoach-ui-ux-final2-test.log`).
 - UI 감사 후 generic iOS Release archive(`/tmp/CubeCoachUIUXFinalArchive.refIcU/CubeCoach.xcarchive`, 로그 `/tmp/cubecoach-ui-ux-final-archive.log`)가 strict concurrency complete·warnings-as-errors 및 Store validation 단계를 통과했다. 이는 `CODE_SIGNING_ALLOWED=NO`인 로컬 구조 검증용이다.
 - 최종 Release + strict concurrency complete + warnings-as-errors `swift test`: Swift Testing 115개와 XCTest 4개가 각각 실패 없이 통과(`/tmp/cubecoach-final-swift-test.log`).

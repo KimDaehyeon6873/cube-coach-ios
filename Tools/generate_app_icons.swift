@@ -6,18 +6,7 @@ import Foundation
 
 private struct IconPalette {
     let background: CGColor
-    let lattice: CGColor
-    let top: CGColor
-    let left: CGColor
-    let right: CGColor
-    let focus: CGColor
-}
-
-private struct Face {
-    let topLeft: CGPoint
-    let topRight: CGPoint
-    let bottomRight: CGPoint
-    let bottomLeft: CGPoint
+    let mark: CGColor
 }
 
 private let canvasSize = 1_024
@@ -31,29 +20,17 @@ private let outputDirectory = URL(
 
 private let standardPalette = IconPalette(
     background: color("#075E79"),
-    lattice: color("#F1E6D2"),
-    top: color("#FFFDF8"),
-    left: color("#27B477"),
-    right: color("#F05A67"),
-    focus: color("#75B6C5")
+    mark: color("#FFFDF8")
 )
 
 private let darkPalette = IconPalette(
     background: color("#071E22"),
-    lattice: color("#D8C9AA"),
-    top: color("#F3E9D2"),
-    left: color("#27B477"),
-    right: color("#F05A67"),
-    focus: color("#61D6EE")
+    mark: color("#F1E6D2")
 )
 
 private let tintedPalette = IconPalette(
     background: color("#171821"),
-    lattice: color("#F5F5FA"),
-    top: color("#E7E7EE"),
-    left: color("#BFC0CB"),
-    right: color("#D2D3DC"),
-    focus: color("#FFFFFF")
+    mark: color("#FFFFFF")
 )
 
 try FileManager.default.createDirectory(
@@ -111,45 +88,31 @@ private func renderIcon(palette: IconPalette, to outputURL: URL) throws {
         CGRect(x: 0, y: 0, width: canvasSize, height: canvasSize)
     )
 
-    let top = Face(
-        topLeft: CGPoint(x: 512, y: 142),
-        topRight: CGPoint(x: 828, y: 324),
-        bottomRight: CGPoint(x: 512, y: 506),
-        bottomLeft: CGPoint(x: 196, y: 324)
-    )
-    let left = Face(
-        topLeft: top.bottomLeft,
-        topRight: top.bottomRight,
-        bottomRight: CGPoint(x: 512, y: 878),
-        bottomLeft: CGPoint(x: 196, y: 696)
-    )
-    let right = Face(
-        topLeft: top.bottomRight,
-        topRight: top.topRight,
-        bottomRight: CGPoint(x: 828, y: 696),
-        bottomLeft: CGPoint(x: 512, y: 878)
-    )
+    let top = CGPoint(x: 512, y: 202)
+    let upperRight = CGPoint(x: 790, y: 362)
+    let lowerRight = CGPoint(x: 790, y: 674)
+    let bottom = CGPoint(x: 512, y: 834)
+    let lowerLeft = CGPoint(x: 234, y: 674)
+    let upperLeft = CGPoint(x: 234, y: 362)
+    let center = CGPoint(x: 512, y: 522)
 
-    for face in [top, left, right] {
-        fillPolygon(face.points, color: palette.lattice, in: context)
-    }
-
-    drawFace(top, cellColor: palette.top, in: context)
-    drawFace(left, cellColor: palette.left, in: context)
-    drawFace(right, cellColor: palette.right, in: context)
-
-    // The outlined outer layer represents a turn target. It communicates
-    // deliberate practice without the auto-solve arrows/checkmarks used by
-    // generic cube utilities.
-    for row in 0 ..< 3 {
-        let focusedSticker = inset(
-            cell(on: right, row: row, column: 2),
-            scale: 0.70
-        )
-        strokePolygon(
-            focusedSticker,
-            color: palette.focus,
-            width: 14,
+    // One continuous outline plus three internal edges is enough to identify
+    // a cube at notification size. No face colors or solve-state symbols.
+    strokePolyline(
+        [top, upperRight, lowerRight, bottom, lowerLeft, upperLeft, top],
+        color: palette.mark,
+        width: 58,
+        in: context
+    )
+    for edge in [
+        [upperLeft, center],
+        [upperRight, center],
+        [center, bottom],
+    ] {
+        strokePolyline(
+            edge,
+            color: palette.mark,
+            width: 58,
             in: context
         )
     }
@@ -162,99 +125,7 @@ private func renderIcon(palette: IconPalette, to outputURL: URL) throws {
     try png.write(to: outputURL, options: .atomic)
 }
 
-private func drawFace(
-    _ face: Face,
-    cellColor: CGColor,
-    in context: CGContext
-) {
-    for row in 0 ..< 3 {
-        for column in 0 ..< 3 {
-            let sticker = inset(
-                cell(on: face, row: row, column: column),
-                scale: 0.84
-            )
-            fillPolygon(sticker, color: cellColor, in: context)
-        }
-    }
-}
-
-private func cell(
-    on face: Face,
-    row: Int,
-    column: Int
-) -> [CGPoint] {
-    let rowStart = CGFloat(row) / 3
-    let rowEnd = CGFloat(row + 1) / 3
-    let columnStart = CGFloat(column) / 3
-    let columnEnd = CGFloat(column + 1) / 3
-
-    return [
-        interpolate(face: face, row: rowStart, column: columnStart),
-        interpolate(face: face, row: rowStart, column: columnEnd),
-        interpolate(face: face, row: rowEnd, column: columnEnd),
-        interpolate(face: face, row: rowEnd, column: columnStart),
-    ]
-}
-
-private func interpolate(
-    face: Face,
-    row: CGFloat,
-    column: CGFloat
-) -> CGPoint {
-    let top = lerp(face.topLeft, face.topRight, amount: column)
-    let bottom = lerp(face.bottomLeft, face.bottomRight, amount: column)
-    return lerp(top, bottom, amount: row)
-}
-
-private func lerp(
-    _ start: CGPoint,
-    _ end: CGPoint,
-    amount: CGFloat
-) -> CGPoint {
-    CGPoint(
-        x: start.x + (end.x - start.x) * amount,
-        y: start.y + (end.y - start.y) * amount
-    )
-}
-
-private func inset(
-    _ points: [CGPoint],
-    scale: CGFloat
-) -> [CGPoint] {
-    let center = points.reduce(CGPoint.zero) {
-        CGPoint(x: $0.x + $1.x, y: $0.y + $1.y)
-    }
-    let centroid = CGPoint(
-        x: center.x / CGFloat(points.count),
-        y: center.y / CGFloat(points.count)
-    )
-
-    return points.map {
-        CGPoint(
-            x: centroid.x + ($0.x - centroid.x) * scale,
-            y: centroid.y + ($0.y - centroid.y) * scale
-        )
-    }
-}
-
-private func fillPolygon(
-    _ points: [CGPoint],
-    color: CGColor,
-    in context: CGContext
-) {
-    guard let first = points.first else { return }
-    let path = CGMutablePath()
-    path.move(to: first)
-    for point in points.dropFirst() {
-        path.addLine(to: point)
-    }
-    path.closeSubpath()
-    context.addPath(path)
-    context.setFillColor(color)
-    context.fillPath()
-}
-
-private func strokePolygon(
+private func strokePolyline(
     _ points: [CGPoint],
     color: CGColor,
     width: CGFloat,
@@ -266,10 +137,10 @@ private func strokePolygon(
     for point in points.dropFirst() {
         path.addLine(to: point)
     }
-    path.closeSubpath()
     context.addPath(path)
     context.setStrokeColor(color)
     context.setLineWidth(width)
+    context.setLineCap(.round)
     context.setLineJoin(.round)
     context.strokePath()
 }
@@ -284,12 +155,6 @@ private func color(_ hex: String) -> CGColor {
         colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
         components: [red, green, blue, 1]
     )!
-}
-
-private extension Face {
-    var points: [CGPoint] {
-        [topLeft, topRight, bottomRight, bottomLeft]
-    }
 }
 
 private enum IconGenerationError: Error {
