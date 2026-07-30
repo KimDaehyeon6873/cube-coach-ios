@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 public struct CubeScanFeatureView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     private static let lowConfidenceThreshold = 0.55
 
@@ -163,22 +164,14 @@ public struct CubeScanFeatureView: View {
                     .padding(20)
                 }
             } else {
-                ScrollView {
-                    VStack(spacing: 18) {
-                        header
-                        captureContent
-                        principleCard
-                    }
-                    .padding(20)
-                }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    captureActionBar
-                }
+                captureExperience
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("내 큐브 확인")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(isCaptureExperienceVisible ? .hidden : .automatic, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .onDisappear { camera.stop() }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -215,6 +208,10 @@ public struct CubeScanFeatureView: View {
 
     private var isEntryChoiceVisible: Bool {
         captureFlow.phase == .firstCorner && camera.availability == .idle
+    }
+
+    private var isCaptureExperienceVisible: Bool {
+        !isEntryChoiceVisible && captureFlow.phase != .review
     }
 
     private var entryChoice: some View {
@@ -314,117 +311,192 @@ public struct CubeScanFeatureView: View {
         .background(.background, in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private var captureContent: some View {
-        VStack(spacing: 14) {
-            cameraSurface
-            guidanceCard
+    private var captureExperience: some View {
+        GeometryReader { proxy in
+            let previewHeight = min(proxy.size.width * 4 / 3, proxy.size.height * 0.70)
+
+            VStack(spacing: 0) {
+                cameraSurface
+                    .frame(height: previewHeight)
+                    .overlay(alignment: .top) {
+                        captureTopBar
+                    }
+
+                captureDock
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .background(Color.black)
+        }
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private var captureTopBar: some View {
+        ZStack {
+            HStack {
+                Button {
+                    camera.stop()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.headline)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .tint(.white)
+                .accessibilityLabel("촬영 닫기")
+
+                Spacer()
+
+                captureStatusPill
+            }
+
+            Text(captureFlow.phase == .firstCorner ? "1 / 2" : "2 / 2")
+                .font(.subheadline.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(.black.opacity(0.55), in: Capsule())
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
+    private var captureStatusPill: some View {
+        Label(
+            captureStatusText,
+            systemImage: captureStatusIcon
+        )
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(captureStatusColor)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.black.opacity(0.55), in: Capsule())
+    }
+
+    private var captureStatusText: String {
+        if let warning = camera.analysisWarning {
+            return warning
+        }
+        return switch camera.availability {
+        case .ready:
+            camera.liveRectangleCandidateCount > 0 ? "촬영 가능" : "정렬 중"
+        case .requestingPermission: "카메라 준비 중"
+        case .denied: "카메라 권한 필요"
+        case .unavailable, .failed: "직접 입력 가능"
+        case .idle: "카메라 준비 중"
         }
     }
 
-    private var captureActionBar: some View {
-        VStack(spacing: 10) {
-            Button(action: captureCurrentCorner) {
-                HStack {
-                    if camera.isCapturing {
-                        ProgressView().tint(.white)
-                    } else {
-                        Image(systemName: "camera.fill")
-                    }
-                    Text(camera.isCapturing ? "품질 확인 중…" : "3면 촬영")
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(camera.availability != .ready || camera.isCapturing)
+    private var captureStatusIcon: String {
+        if camera.analysisWarning != nil {
+            return "exclamationmark.triangle.fill"
+        }
+        return switch camera.availability {
+        case .ready:
+            camera.liveRectangleCandidateCount > 0 ? "checkmark.circle.fill" : "viewfinder"
+        case .requestingPermission, .idle: "camera.fill"
+        case .denied: "camera.fill.badge.xmark"
+        case .unavailable, .failed: "square.and.pencil"
+        }
+    }
 
-            if captureFlow.manualFallbackIsAvailable {
-                Button {
-                    isManualFallbackConfirmationPresented = true
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.pencil")
-                        Text(
-                            captureFlow.didFailCurrentCapture
-                                ? "촬영 실패 · 이 3면 직접 입력"
-                                : "이 3면 촬영 없이 입력"
-                        )
+    private var captureStatusColor: Color {
+        guard camera.analysisWarning == nil else { return .orange }
+        if camera.availability == .ready, camera.liveRectangleCandidateCount > 0 {
+            return .green
+        }
+        return .white
+    }
+
+    private var captureDock: some View {
+        VStack(spacing: 14) {
+            VStack(spacing: 4) {
+                Text(captureFlow.phase == .firstCorner
+                    ? "흰색 U · 초록색 F · 빨간색 R"
+                    : "노란색 D · 주황색 L · 파란색 B")
+                    .font(.headline)
+                Text("반사를 피해 세 면의 3×3 전체를 안내선에 맞추세요.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+            .multilineTextAlignment(.center)
+
+            ZStack {
+                HStack {
+                    Button {
+                        isManualFallbackConfirmationPresented = true
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: "square.and.pencil")
+                                .font(.title3)
+                            Text("직접 입력")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .frame(width: 80, height: 56)
                     }
-                    .frame(maxWidth: .infinity)
+                    .tint(.white)
+                    .disabled(camera.isCapturing)
+
+                    Spacer()
+
+                    Color.clear
+                        .frame(width: 80, height: 56)
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.bordered)
-                .disabled(camera.isCapturing)
+
+                Button(action: captureCurrentCorner) {
+                    ZStack {
+                        Circle()
+                            .stroke(.white, lineWidth: 4)
+                            .frame(width: 76, height: 76)
+                        Circle()
+                            .fill(camera.availability == .ready ? Color.white : Color.gray)
+                            .frame(width: 62, height: 62)
+                        if camera.isCapturing {
+                            ProgressView()
+                                .tint(.black)
+                        }
+                    }
+                }
+                .disabled(camera.availability != .ready || camera.isCapturing)
+                .accessibilityLabel(camera.isCapturing ? "사진 분석 중" : "세 면 촬영")
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
-        .background(.regularMaterial)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+        .padding(.bottom, 24)
     }
 
     @ViewBuilder
     private var cameraSurface: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 22)
-                .fill(Color.black)
+            Color.black
 
             if camera.availability == .ready {
                 CubeCameraPreview(camera: camera)
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .clipped()
                 cornerGuide
             } else {
                 cameraFallback
-            }
-        }
-        // Keep the preview at the portrait capture aspect ratio so the
-        // normalized guide coordinates match the sampled photo regions.
-        .aspectRatio(3.0 / 4.0, contentMode: .fit)
-        .overlay(alignment: .topTrailing) {
-            if camera.availability == .ready {
-                Label(
-                    camera.analysisWarning
-                        ?? (camera.liveRectangleCandidateCount > 0
-                            ? "안내선 맞음 · 촬영 가능"
-                            : "큐브를 안내선에 맞추세요"),
-                    systemImage: camera.analysisWarning == nil ? "viewfinder" : "exclamationmark.triangle.fill"
-                )
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(camera.analysisWarning == nil ? Color.primary : Color.orange)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(12)
             }
         }
         .accessibilityLabel("큐브 촬영 미리보기")
     }
 
     private var cornerGuide: some View {
-        ZStack {
-            GeometryReader { proxy in
-                ForEach(CubePoseFaceSlot.allCases, id: \.self) { slot in
-                    if let quadrilateral = CubeGuidedFaceLayout.portraitThreeFace.quadrilaterals[slot] {
-                        GuideQuadrilateralShape(quadrilateral: quadrilateral)
-                            .stroke(.white.opacity(0.95), style: StrokeStyle(lineWidth: 2, dash: [7, 4]))
-                            .overlay {
-                                Text(guideFaceLabel(for: slot))
-                                    .font(.caption.monospaced().bold())
-                                    .foregroundStyle(.white)
-                                    .position(guideLabelPosition(for: quadrilateral, in: proxy.size))
-                            }
-                    }
+        GeometryReader { proxy in
+            ForEach(CubePoseFaceSlot.allCases, id: \.self) { slot in
+                if let quadrilateral = CubeGuidedFaceLayout.portraitThreeFace.quadrilaterals[slot] {
+                    GuideQuadrilateralShape(quadrilateral: quadrilateral)
+                        .stroke(.white.opacity(0.95), style: StrokeStyle(lineWidth: 2, dash: [7, 4]))
+                        .overlay {
+                            Text(guideFaceLabel(for: slot))
+                                .font(.caption.monospaced().bold())
+                                .foregroundStyle(.white)
+                                .position(guideLabelPosition(for: quadrilateral, in: proxy.size))
+                        }
                 }
-            }
-            VStack {
-                Spacer()
-            Text(captureFlow.phase == .firstCorner
-                ? "흰 U · 초록 F · 빨강 R 센터를 안내선에 맞춰 주세요"
-                : "노랑 D · 주황 L · 파랑 B 센터를 안내선에 맞춰 주세요")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(10)
-                .background(.black.opacity(0.55), in: Capsule())
-                .padding(.bottom, 18)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -473,24 +545,6 @@ public struct CubeScanFeatureView: View {
         }
         .foregroundStyle(.white)
         .padding(30)
-    }
-
-    private var guidanceCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(
-                captureFlow.phase == .firstCorner
-                    ? "첫 촬영 · U / F / R"
-                    : "두 번째 촬영 · D / L / B",
-                systemImage: captureFlow.phase == .firstCorner ? "1.circle.fill" : "2.circle.fill"
-            )
-            .font(.subheadline.weight(.semibold))
-            Text("빛 반사를 줄이고 각 면의 3×3 전체를 흰 안내선 안에 맞추세요. 촬영 뒤 인식이 불확실한 칸을 직접 확인해요.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var reviewContent: some View {

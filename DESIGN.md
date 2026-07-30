@@ -192,7 +192,8 @@
   - `CubeNetView`: 고정 면 배치, 색과 방향 문자·테두리, 변경 스티커 강조와 VoiceOver 면 설명
   - `NotationPrimerView`: 기준 면, 시계 방향 판정과 기본 표기 안내
   - `ScanPoseGuide`: 포즈 A/B, 검출 면, 조명·거리 피드백
-  - `ScanEntryChoice`: 카메라 권한 요청 전에 촬영과 54칸 직접 입력을 같은 첫 viewport에서 선택한다. 촬영 단계에서는 `3면 촬영`과 해당 3면의 직접 입력을 하단 고정 조작 영역에 유지한다.
+  - `ScanEntryChoice`: 카메라 권한 요청 전에 촬영과 54칸 직접 입력을 같은 첫 viewport에서 선택한다.
+  - `CameraCaptureView`: navigation/tab bar·카드·스크롤 없는 전체 화면 AVFoundation 프리뷰. 상단은 닫기·`1/2` 또는 `2/2`·아이콘과 문장으로 된 상태, 중앙은 얇은 3면 외곽선과 U/F/R 또는 D/L/B, 하단은 한 줄 방향 안내·76pt 원형 셔터·직접 입력만 표시한다.
   - `StickerCorrectionGrid`: 낮은 신뢰도 스티커만 빠르게 수정
   - `PracticeTimer`: 별도 push와 `ScrollView`가 없는 연습 루트. 인라인 내비게이션, 모드 선택, 스크램블, 축약 전개도·U/F 기준, 시간과 주요 조작을 한 viewport에 둔다. 소형 iPhone과 시스템 최대 콘텐츠 크기 요청에서도 필수 요소를 함께 유지하도록 이 계측기 내부의 Dynamic Type만 `Accessibility 1`까지 제한한다. 준비, 검사, 실행, 정지, +2/DNF를 같은 조작 위치에서 전환한다. 실행 중에는 persistent `UIButton`이 시간 지연 없이 새 touch sequence의 hit-test를 받고 첫 touch-down을 one-shot으로 정지하며, 내비게이션·탭 chrome을 숨긴다.
   - `ScrambleCard`: TNoodle 연습 스크램블 표기와 같은 스크램블을 완성 상태에 적용한 54-facelet 전개도를 한 단위로 표시한다. 흰색 U 위·초록 F 앞 검산 기준을 전개도 옆에 축약 표시하고, 둘 중 하나라도 만들지 못하면 타이머를 잠근다. 솔브 정지당 다음 presentation은 정확히 한 번 게시한다.

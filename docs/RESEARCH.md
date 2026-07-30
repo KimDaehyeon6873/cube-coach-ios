@@ -580,6 +580,15 @@
 
 따라서 이 문서의 무제한 random-state, 임의 사진 detector, 비표준 색 배치와 조건 전반의 자동 보정은 현재 기능 설명이 아니라 제품·아키텍처 목표다. 현재 색 분류와 cubie 불변식은 가이드 정렬·표준 6색·사용자 확인이라는 제한 안에서 구현됐다.
 
+## 9.2 촬영 화면 레퍼런스 판정
+
+- [Apple HIG Camera Control](https://developer.apple.com/design/human-interface-guidelines/camera-control)은 촬영 경험에서 큰 viewfinder, 짧은 라벨, 최소한의 방해 요소를 권고한다. CubeCoach 촬영 화면에서는 카드·스크롤·탭 바를 제거하고 카메라 프리뷰, 포즈 가이드, 상태 한 줄과 셔터만 남긴다.
+- [Apple Designing for iOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-ios/)는 주요 과업에 집중하도록 화면 제어 수를 제한하고, 자주 쓰는 동작을 손이 닿기 쉬운 중간·하단에 두는 방향을 제시한다. 원형 셔터와 직접 입력 대체 경로를 하단에 둔다.
+- [AVCam](https://developer.apple.com/documentation/avfoundation/avcam-building-a-camera-app)과 [AVCaptureVideoPreviewLayer](https://developer.apple.com/documentation/avfoundation/avcapturevideopreviewlayer)는 실시간 촬영 프리뷰의 AVFoundation 기준이다. 현재 구현은 이 계층 위에 전용 3면 guide overlay를 올린다.
+- [DataScannerViewController](https://developer.apple.com/documentation/visionkit/datascannerviewcontroller)는 텍스트·바코드 인식, [VNDocumentCameraViewController](https://developer.apple.com/documentation/visionkit/vndocumentcameraviewcontroller)는 문서 페이지 촬영을 위한 UI다. 큐브 색·두 포즈·54칸 확인 계약과 맞지 않으므로 재사용하지 않는다.
+- 공개 보조 사례인 [CubeSolver AR](https://apps.apple.com/us/app/cubesolver-ar/id1497283315), [CubeSolve](https://cubesolve.app/), [CubeUnstuck Scanner](https://solver.cubeunstuck.com/)에서는 촬영 뒤 사람이 색을 확인하는 흐름, 촬영과 직접 입력의 분리, `흰색 위·초록색 앞` 같은 고정 방향 안내만 참고한다. 자동 해결 중심 표현과 외형은 복제하지 않는다.
+- 구현 결정: `진입 선택 → 권한 → 전체 화면 포즈 1 → 포즈 2 → 54칸 확인`을 사용한다. 촬영 화면은 닫기, `1/2` 또는 `2/2`, 얇은 3면 외곽선, 아이콘+문장 상태, 76pt 원형 셔터와 직접 입력만 표시한다. 촬영 사이 사진 검토 화면은 원본 이미지 보존·재촬영 계약을 정의한 뒤 후속 구현한다.
+
 ## 10. 제품에 반영할 결정
 
 ### 확정할 수 있는 결정

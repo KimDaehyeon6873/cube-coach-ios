@@ -111,6 +111,8 @@
 
 ### 2026-07-31 로컬 검증 증거
 
+- Apple 촬영 UI 레퍼런스를 반영한 전체 화면 카메라 재설계 후 `swift test`는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-camera-redesign-test.log`), strict concurrency complete·warnings-as-errors Simulator 빌드도 성공했다(`/tmp/cubecoach-camera-redesign-final-build.log`).
+- 같은 변경의 generic iOS Release archive(`/tmp/CubeCoachCameraRedesignArchive.NAV9LE/CubeCoach.xcarchive`, 로그 `/tmp/cubecoach-camera-redesign-archive.log`)가 Store validation 단계를 통과했다. 이는 `CODE_SIGNING_ALLOWED=NO`인 로컬 구조 검증용이다.
 - 내 큐브 확인 진입 재기획 후 `swift test`는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-scan-entry-final-test.log`), strict concurrency complete·warnings-as-errors Simulator 빌드도 성공했다(`/tmp/cubecoach-scan-entry-final3-build.log`).
 - 같은 변경의 generic iOS Release archive(`/tmp/CubeCoachScanEntryFinalArchive.8y24FQ/CubeCoach.xcarchive`, 로그 `/tmp/cubecoach-scan-entry-final-archive.log`)가 Store validation 단계를 통과했다. 이는 `CODE_SIGNING_ALLOWED=NO`인 로컬 구조 검증용이다.
 - UI·UX 라이팅·브랜드 감사 결과와 실기기 전 필수 항목을 `docs/UI_UX_AUDIT.md`에 기록했다. iPhone SE 3세대 Simulator의 라이트·다크 모드에서 오늘·학습·연습·기록 화면을 확인했고, 연습 화면은 스크롤 없이 한 화면에 유지됐다.
