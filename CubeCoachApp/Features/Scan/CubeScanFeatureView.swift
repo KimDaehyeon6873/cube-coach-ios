@@ -1,0 +1,920 @@
+import CubeCoachCore
+import SwiftUI
+import UIKit
+
+public struct CubeScanFeatureView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    private static let lowConfidenceThreshold = 0.55
+
+    private struct CaptureResult: Equatable {
+        let candidateCount: Int
+        let confidence: Double
+        let wasManual: Bool
+        let observation: CubePoseObservation?
+    }
+
+    private enum FaceColor: String, CaseIterable, Identifiable {
+        case white = "흰색"
+        case yellow = "노랑"
+        case green = "초록"
+        case blue = "파랑"
+        case red = "빨강"
+        case orange = "주황"
+
+        var id: Self { self }
+
+        var symbol: String {
+            switch self {
+            case .white: "W"
+            case .yellow: "Y"
+            case .green: "G"
+            case .blue: "B"
+            case .red: "R"
+            case .orange: "O"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .white: .white
+            case .yellow: .yellow
+            case .green: .green
+            case .blue: .blue
+            case .red: .red
+            case .orange: .orange
+            }
+        }
+
+        var foregroundColor: Color {
+            switch self {
+            case .white, .yellow: .black
+            case .green, .blue, .red, .orange: .white
+            }
+        }
+
+        var faceletSymbol: String {
+            switch self {
+            case .white: "U"
+            case .red: "R"
+            case .green: "F"
+            case .yellow: "D"
+            case .orange: "L"
+            case .blue: "B"
+            }
+        }
+
+        init?(faceletSymbol: String) {
+            switch faceletSymbol {
+            case "U": self = .white
+            case "R": self = .red
+            case "F": self = .green
+            case "D": self = .yellow
+            case "L": self = .orange
+            case "B": self = .blue
+            default: return nil
+            }
+        }
+    }
+
+    private struct FaceDraft: Identifiable {
+        let id: Int
+        let label: String
+        let notation: String
+        let centerAnchor: FaceColor
+        var stickers: [FaceColor]
+        var confidences: [Double]
+
+        init(id: Int, label: String, notation: String, centerAnchor: FaceColor) {
+            self.id = id
+            self.label = label
+            self.notation = notation
+            self.centerAnchor = centerAnchor
+            stickers = Array(repeating: centerAnchor, count: 9)
+            confidences = Array(repeating: 0, count: 9)
+        }
+    }
+
+    @StateObject private var camera = CubeCameraModel()
+    @State private var captureFlow = CubeScanCaptureFlow()
+    @State private var firstCapture: CaptureResult?
+    @State private var secondCapture: CaptureResult?
+    @State private var faces: [FaceDraft] = [
+        .init(id: 0, label: "위", notation: "U", centerAnchor: .white),
+        .init(id: 1, label: "앞", notation: "F", centerAnchor: .green),
+        .init(id: 2, label: "오른쪽", notation: "R", centerAnchor: .red),
+        .init(id: 3, label: "아래", notation: "D", centerAnchor: .yellow),
+        .init(id: 4, label: "뒤", notation: "B", centerAnchor: .blue),
+        .init(id: 5, label: "왼쪽", notation: "L", centerAnchor: .orange),
+    ]
+    @State private var didConfirmLowConfidence = false
+    @State private var captureError: String?
+    @State private var isManualFallbackConfirmationPresented = false
+    @State private var validationMessage = "54칸을 확인하면 cubie와 parity를 검증합니다."
+    @State private var validatedDiagnosis: CubePracticeDiagnosis?
+    @State private var isLegalCubeState = false
+
+    private let onStartPractice: (CubePracticeDiagnosis) -> Void
+
+    public init(onStartPractice: @escaping (CubePracticeDiagnosis) -> Void = { _ in }) {
+        self.onStartPractice = onStartPractice
+    }
+
+    private var phaseTitle: String {
+        switch captureFlow.phase {
+        case .firstCorner: "1차 · 첫 꼭짓점"
+        case .oppositeCorner: "2차 · 반대 꼭짓점"
+        case .review: "확인 · 수정"
+        }
+    }
+
+    private var manualFallbackConfirmationTitle: String {
+        switch captureFlow.phase {
+        case .firstCorner:
+            "첫 U·F·R 촬영을 건너뛸까요?"
+        case .oppositeCorner:
+            "두 번째 D·L·B 촬영을 건너뛸까요?"
+        case .review:
+            "수동 확인으로 계속할까요?"
+        }
+    }
+
+    public var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                header
+                principleCard
+
+                if captureFlow.phase == .review {
+                    reviewContent
+                } else {
+                    captureContent
+                }
+            }
+            .padding(20)
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle("내 큐브로 연습")
+        .navigationBarTitleDisplayMode(.inline)
+        .onDisappear { camera.stop() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                if camera.availability == .denied {
+                    Task { await camera.prepare() }
+                } else if camera.availability == .ready, captureFlow.phase != .review {
+                    camera.start()
+                }
+            } else {
+                camera.stop()
+            }
+        }
+        .alert("촬영을 완료하지 못했어요", isPresented: Binding(
+            get: { captureError != nil },
+            set: { if !$0 { captureError = nil } }
+        )) {
+            Button("확인", role: .cancel) { captureError = nil }
+        } message: {
+            Text(captureError ?? "수동 확인으로 계속할 수 있어요.")
+        }
+        .confirmationDialog(
+            manualFallbackConfirmationTitle,
+            isPresented: $isManualFallbackConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("이 촬영 건너뛰기 · 54칸 직접 확인") {
+                acceptManualCapture()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("자동 인식값 없이 다음 단계로 이동합니다. 두 포즈를 마치면 54칸 전체를 실제 큐브와 대조해 직접 수정해야 합니다.")
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                ForEach(CubeScanCapturePhase.allCases, id: \.rawValue) { item in
+                    Capsule()
+                        .fill(item.rawValue <= captureFlow.phase.rawValue ? Color.accentColor : Color.secondary.opacity(0.2))
+                        .frame(height: 5)
+                }
+            }
+            Text(phaseTitle)
+                .font(.headline)
+            Text("먼저 흰 센터를 위(U), 초록 센터를 앞(F), 빨강 센터를 오른쪽(R)에 맞추고, 다음 촬영은 반대 꼭짓점의 노랑(D)·주황(L)·파랑(B)을 안내선에 맞추세요.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var principleCard: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("해답 대신 연습을 돕는 온디바이스 촬영")
+                    .font(.subheadline.weight(.semibold))
+                Text("사진은 저장하거나 네트워크로 전송하지 않아요. 표준 6색 배치(흰-노랑, 초록-파랑, 빨강-주황 반대)를 기준으로 안내선 안의 3면만 기기에서 분석하며, 임의 사진 속 큐브를 찾는 완전 자동 detector는 아닙니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: "lock.shield")
+                .foregroundStyle(.green)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var captureContent: some View {
+        VStack(spacing: 14) {
+            cameraSurface
+            guidanceCard
+
+            if camera.availability == .idle {
+                Button {
+                    Task { await camera.prepare() }
+                } label: {
+                    Label("카메라 사용 시작", systemImage: "camera.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("탭하면 카메라 권한을 확인합니다")
+            } else {
+                Button(action: captureCurrentCorner) {
+                    HStack {
+                        if camera.isCapturing {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "camera.fill")
+                        }
+                        Text(camera.isCapturing ? "품질 확인 중…" : "3면 촬영")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(camera.availability != .ready || camera.isCapturing)
+            }
+
+            if captureFlow.manualFallbackIsAvailable {
+                Button {
+                    isManualFallbackConfirmationPresented = true
+                } label: {
+                    Label(
+                        captureFlow.didFailCurrentCapture
+                            ? "촬영 실패 · 54칸 수동 확인으로 계속"
+                            : "촬영 없이 54칸 수동 확인으로 계속",
+                        systemImage: "square.and.pencil"
+                    )
+                }
+                .buttonStyle(.bordered)
+                .disabled(camera.isCapturing)
+
+                Text("자동 촬영이 어렵거나 원하지 않을 때만 사용하세요. 확인 후 현재 3면 촬영을 건너뜁니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cameraSurface: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color.black)
+
+            if camera.availability == .ready {
+                CubeCameraPreview(camera: camera)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                cornerGuide
+            } else {
+                cameraFallback
+            }
+        }
+        // Keep the preview at the portrait capture aspect ratio so the
+        // normalized guide coordinates match the sampled photo regions.
+        .aspectRatio(3.0 / 4.0, contentMode: .fit)
+        .overlay(alignment: .topTrailing) {
+            if camera.availability == .ready {
+                Label(
+                    camera.analysisWarning ?? "품질 후보 \(camera.liveRectangleCandidateCount)",
+                    systemImage: camera.analysisWarning == nil ? "viewfinder" : "exclamationmark.triangle.fill"
+                )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(camera.analysisWarning == nil ? Color.primary : Color.orange)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(12)
+            }
+        }
+        .accessibilityLabel("큐브 촬영 미리보기")
+    }
+
+    private var cornerGuide: some View {
+        ZStack {
+            GeometryReader { proxy in
+                ForEach(CubePoseFaceSlot.allCases, id: \.self) { slot in
+                    if let quadrilateral = CubeGuidedFaceLayout.portraitThreeFace.quadrilaterals[slot] {
+                        GuideQuadrilateralShape(quadrilateral: quadrilateral)
+                            .stroke(.white.opacity(0.95), style: StrokeStyle(lineWidth: 2, dash: [7, 4]))
+                            .overlay {
+                                Text(guideFaceLabel(for: slot))
+                                    .font(.caption.monospaced().bold())
+                                    .foregroundStyle(.white)
+                                    .position(guideLabelPosition(for: quadrilateral, in: proxy.size))
+                            }
+                    }
+                }
+            }
+            VStack {
+                Spacer()
+            Text(captureFlow.phase == .firstCorner
+                ? "흰 U · 초록 F · 빨강 R 센터를 안내선에 맞춰 주세요"
+                : "노랑 D · 주황 L · 파랑 B 센터를 안내선에 맞춰 주세요")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(10)
+                .background(.black.opacity(0.55), in: Capsule())
+                .padding(.bottom, 18)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(captureFlow.phase == .firstCorner
+            ? "U F R 세 면을 안내선에 맞추세요"
+            : "D L B 세 면을 안내선에 맞추세요")
+    }
+
+    private var cameraFallback: some View {
+        VStack(spacing: 12) {
+            switch camera.availability {
+            case .idle:
+                Image(systemName: "camera.viewfinder")
+                    .font(.largeTitle)
+                Text("원할 때 카메라를 시작하세요")
+                    .font(.headline)
+                Text("아래 버튼을 누르기 전에는 카메라 권한을 요청하지 않습니다.")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            case .requestingPermission:
+                ProgressView()
+                    .tint(.white)
+                Text("카메라 권한 확인 중")
+            case .denied:
+                Image(systemName: "camera.fill.badge.xmark")
+                    .font(.largeTitle)
+                Text("카메라 접근이 꺼져 있어요")
+                    .font(.headline)
+                Text("설정에서 권한을 켜거나 수동 확인으로 연습을 계속하세요.")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                Button("설정 열기") { openSettings() }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+            case .unavailable(let reason), .failed(let reason):
+                Image(systemName: "cube.transparent")
+                    .font(.largeTitle)
+                Text("카메라 대체 모드")
+                    .font(.headline)
+                Text(reason)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            case .ready:
+                EmptyView()
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(30)
+    }
+
+    private var guidanceCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(
+                captureFlow.phase == .firstCorner
+                    ? "1차 안내선: 위쪽 흰 U · 왼쪽 초록 F · 오른쪽 빨강 R"
+                    : "2차 안내선: 위쪽 노랑 D · 왼쪽 주황 L · 오른쪽 파랑 B",
+                systemImage: captureFlow.phase == .firstCorner ? "1.circle.fill" : "2.circle.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+            Text("빛 반사를 줄이고 각 면의 3×3 전체와 중앙 스티커를 흰 안내선 안에 맞춰 주세요. 촬영 후 자동 색상 분류 결과와 낮은 신뢰도 칸을 직접 확인합니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var reviewContent: some View {
+        VStack(spacing: 16) {
+            confidenceSummary
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("54칸 자동 분류 결과")
+                    .font(.headline)
+                Text("안내선에 맞춘 두 촬영에서 센터색을 기준으로 분류했습니다. 주황 테두리 칸과 실제 큐브가 다른 칸을 수정해 주세요.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 150), spacing: 12)
+            ], spacing: 12) {
+                ForEach(faces.indices, id: \.self) { faceIndex in
+                    faceCard(at: faceIndex)
+                }
+            }
+
+            colorCountValidation
+            legalityValidation
+
+            if let diagnosis = validatedDiagnosis {
+                diagnosisCard(diagnosis)
+            }
+
+            Toggle(isOn: $didConfirmLowConfidence) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("54칸을 실제 큐브와 대조했어요")
+                        .font(.subheadline.weight(.semibold))
+                    Text("낮은 신뢰도 칸을 포함해 자동 분류 결과를 확인했습니다.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(14)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+
+            Button {
+                guard let validatedDiagnosis else { return }
+                onStartPractice(validatedDiagnosis)
+            } label: {
+                Text("확인 완료 · 회상 연습으로 이동")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!didConfirmLowConfidence || !isLegalCubeState)
+
+            Text(isLegalCubeState
+                ? "합법적인 큐브 상태와 사용자 확인이 모두 완료되어야 연습을 시작할 수 있습니다."
+                : "색상 수량뿐 아니라 코너·엣지 조합, 방향 합, permutation parity가 모두 맞아야 연습할 수 있습니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button("다시 촬영") { resetScan() }
+                .font(.subheadline)
+        }
+    }
+
+    private func faceCard(at faceIndex: Int) -> some View {
+        let face = faces[faceIndex]
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("\(face.label) 면")
+                    .font(.subheadline.weight(.semibold))
+                Text(face.notation)
+                    .font(.caption.monospaced().weight(.bold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Label("센터 고정", systemImage: "lock.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 3), spacing: 5) {
+                ForEach(0..<9, id: \.self) { stickerIndex in
+                    stickerCell(faceIndex: faceIndex, stickerIndex: stickerIndex)
+                }
+            }
+        }
+        .padding(12)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    private func stickerCell(faceIndex: Int, stickerIndex: Int) -> some View {
+        let face = faces[faceIndex]
+        let color = face.stickers[stickerIndex]
+        let row = stickerIndex / 3 + 1
+        let column = stickerIndex % 3 + 1
+        let confidence = face.confidences[stickerIndex]
+        let isLowConfidence = confidence < Self.lowConfidenceThreshold
+        let confidenceText = isLowConfidence ? ", 낮은 인식 신뢰도" : ""
+        let accessibilityText = "\(face.label) 면, \(row)행 \(column)열, \(color.rawValue)\(confidenceText)"
+
+        if stickerIndex == 4 {
+            stickerLabel(color: face.centerAnchor, isCenter: true, isLowConfidence: isLowConfidence)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(accessibilityText), 고정된 센터")
+        } else {
+            Menu {
+                ForEach(FaceColor.allCases) { option in
+                    Button {
+                        setStickerColor(option, faceIndex: faceIndex, stickerIndex: stickerIndex)
+                    } label: {
+                        Label("\(option.rawValue) (\(option.symbol))", systemImage: option == color ? "checkmark" : "circle")
+                    }
+                }
+            } label: {
+                stickerLabel(color: color, isCenter: false, isLowConfidence: isLowConfidence)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityText)
+            .accessibilityHint("두 번 탭하여 색상 변경")
+        }
+    }
+
+    private func stickerLabel(color: FaceColor, isCenter: Bool, isLowConfidence: Bool) -> some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 7)
+                .fill(color.color)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(isLowConfidence ? Color.orange : .black.opacity(0.22), lineWidth: isLowConfidence ? 3 : 1)
+                )
+                .aspectRatio(1, contentMode: .fit)
+            Text(color.symbol)
+                .font(.caption.monospaced().weight(.heavy))
+                .foregroundStyle(color.foregroundColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if isCenter {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(color.foregroundColor.opacity(0.8))
+                    .padding(4)
+            } else if isLowConfidence {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.orange)
+                    .padding(3)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var colorCountValidation: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: hasValidStickerCounts && centersAreValid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(hasValidStickerCounts && centersAreValid ? .green : .red)
+                Text(hasValidStickerCounts && centersAreValid ? "색상 수량 확인 완료" : "색상 수량을 맞춰 주세요")
+                    .font(.subheadline.weight(.semibold))
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
+                ForEach(FaceColor.allCases, id: \.self) { color in
+                    colorCountItem(color)
+                }
+            }
+
+            if !centersAreValid {
+                Text("각 면의 센터 앵커가 바뀌었습니다. 다시 촬영해 초기화해 주세요.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            Text("색상별 9개와 센터에 이어 코너·엣지 조합, 방향 합, permutation parity까지 즉시 검증합니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func colorCountItem(_ color: FaceColor) -> some View {
+        let count = stickerCounts[color, default: 0]
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(color.color)
+                .overlay(Circle().stroke(.secondary.opacity(0.3)))
+                .frame(width: 16, height: 16)
+            Text("\(color.symbol) \(count)/9")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(count == 9 ? Color.primary : Color.red)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(color.rawValue), \(count)개, 필요한 수량 9개")
+    }
+
+    private var confidenceSummary: some View {
+        let captures = [firstCapture, secondCapture].compactMap { $0 }
+        let candidateTotal = captures.map(\.candidateCount).reduce(0, +)
+        let usedManual = captures.contains(where: \.wasManual)
+
+        return HStack(alignment: .top, spacing: 12) {
+            Image(systemName: lowConfidenceCellCount > 0 || usedManual ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(lowConfidenceCellCount > 0 || usedManual ? .orange : .green)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(lowConfidenceCellCount > 0 || usedManual ? "낮은 신뢰도 · 사용자 확인 필요" : "자동 분류 신뢰도 양호 · 그래도 확인 필요")
+                    .font(.subheadline.weight(.semibold))
+                Text(usedManual
+                    ? "수동 초안이 포함되어 54칸 전체 확인이 필요합니다."
+                    : "두 촬영의 품질 후보 \(candidateTotal)개, 낮은 색상 분류 신뢰도 \(lowConfidenceCellCount)칸입니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var legalityValidation: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isLegalCubeState ? "합법적인 3×3 상태" : "큐브 상태를 다시 확인해 주세요")
+                    .font(.subheadline.weight(.semibold))
+                Text(validationMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: isLegalCubeState ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
+                .foregroundStyle(isLegalCubeState ? .green : .red)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func diagnosisCard(_ diagnosis: CubePracticeDiagnosis) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("다음 학습 단계", systemImage: "figure.mind.and.body")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(diagnosis.title)
+                .font(.headline)
+            Text(diagnosis.practiceGoal)
+                .font(.subheadline)
+            Text("추천 레슨 · \(recommendedLessonTitle(for: diagnosis))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func captureCurrentCorner() {
+        Task {
+            do {
+                let pose: CubeCapturePose = captureFlow.phase == .firstCorner ? .upperFrontRight : .downBackLeft
+                let analysis = try await camera.capture(pose: pose)
+                applyCapture(.init(
+                    candidateCount: analysis.rectangleCandidateCount,
+                    confidence: analysis.confidence,
+                    wasManual: false,
+                    observation: analysis.poseObservation
+                ))
+            } catch {
+                captureFlow.recordCaptureFailure()
+                captureError = (error as? LocalizedError)?.errorDescription ?? "다시 촬영하거나 수동 확인으로 계속해 주세요."
+            }
+        }
+    }
+
+    private func acceptManualCapture() {
+        applyCapture(.init(candidateCount: 0, confidence: 0.2, wasManual: true, observation: nil))
+    }
+
+    private var stickerCounts: [FaceColor: Int] {
+        faces
+            .flatMap(\.stickers)
+            .reduce(into: [:]) { counts, color in
+                counts[color, default: 0] += 1
+            }
+    }
+
+    private var hasValidStickerCounts: Bool {
+        FaceColor.allCases.allSatisfy { stickerCounts[$0, default: 0] == 9 }
+    }
+
+    private var centersAreValid: Bool {
+        faces.allSatisfy { $0.stickers.count == 9 && $0.stickers[4] == $0.centerAnchor }
+    }
+
+    private var lowConfidenceCellCount: Int {
+        faces.flatMap(\.confidences).filter { $0 < Self.lowConfidenceThreshold }.count
+    }
+
+    private var faceletString: String {
+        ["U", "R", "F", "D", "L", "B"].compactMap { notation in
+            faces.first(where: { $0.notation == notation })
+        }
+        .flatMap(\.stickers)
+        .map(\.faceletSymbol)
+        .joined()
+    }
+
+    private func setStickerColor(_ color: FaceColor, faceIndex: Int, stickerIndex: Int) {
+        guard faces.indices.contains(faceIndex),
+              faces[faceIndex].stickers.indices.contains(stickerIndex),
+              stickerIndex != 4 else { return }
+        faces[faceIndex].stickers[stickerIndex] = color
+        faces[faceIndex].confidences[stickerIndex] = 1
+        didConfirmLowConfidence = false
+        validateDraft()
+    }
+
+    private func applyCapture(_ result: CaptureResult) {
+        switch captureFlow.phase {
+        case .firstCorner:
+            firstCapture = result
+            captureFlow.acceptCapture()
+        case .oppositeCorner:
+            secondCapture = result
+            camera.stop()
+            captureFlow.acceptCapture()
+            reconstructCapturedFacelets()
+        case .review:
+            break
+        }
+    }
+
+    private func reconstructCapturedFacelets() {
+        let observations = [firstCapture?.observation, secondCapture?.observation].compactMap { $0 }
+        guard observations.count == 2 else {
+            validateDraft()
+            return
+        }
+
+        do {
+            let scan = try CubeFaceletReconstructor.reconstruct(observations: observations)
+            for (cameraFace, classifiedFacelets) in scan.faceletsByFace {
+                guard let faceIndex = faces.firstIndex(where: { $0.notation == cameraFace.rawValue }),
+                      classifiedFacelets.count == 9 else { continue }
+                faces[faceIndex].stickers = classifiedFacelets.compactMap {
+                    FaceColor(faceletSymbol: $0.colorFace.rawValue)
+                }
+                faces[faceIndex].confidences = classifiedFacelets.map(\.confidence)
+            }
+            didConfirmLowConfidence = false
+            validateDraft()
+        } catch {
+            captureError = "안내선 기반 54칸 복원에 실패했습니다. 수동 초안을 실제 큐브와 대조해 수정해 주세요."
+            validateDraft()
+        }
+    }
+
+    private func validateDraft() {
+        guard faceletString.count == 54 else {
+            isLegalCubeState = false
+            validatedDiagnosis = nil
+            validationMessage = "54칸 복원이 완전하지 않습니다."
+            return
+        }
+        do {
+            let state = try CubeState(faceletString: faceletString)
+            isLegalCubeState = true
+            validatedDiagnosis = state.practiceDiagnosis
+            validationMessage = "색상 수량, cubie 구성, 코너·엣지 방향 합과 permutation parity가 모두 유효합니다."
+        } catch let error as CubeStateValidationError {
+            isLegalCubeState = false
+            validatedDiagnosis = nil
+            validationMessage = validationDescription(for: error)
+        } catch {
+            isLegalCubeState = false
+            validatedDiagnosis = nil
+            validationMessage = "큐브 상태를 검증하지 못했습니다. 표시된 54칸을 다시 확인해 주세요."
+        }
+    }
+
+    private func validationDescription(for error: CubeStateValidationError) -> String {
+        switch error {
+        case .invalidFaceletCount:
+            "54칸이 모두 채워지지 않았습니다."
+        case .invalidFaceletSymbol:
+            "인식할 수 없는 색상 기호가 있습니다."
+        case .duplicateCenters, .centerMismatch:
+            "여섯 센터색과 면 방향을 다시 확인해 주세요."
+        case .invalidColorCount:
+            "각 색상은 정확히 9칸이어야 합니다."
+        case .unknownCorner, .duplicateCorner, .missingCorner:
+            "존재할 수 없는 코너 색상 조합입니다. 코너 세 칸을 확인해 주세요."
+        case .unknownEdge, .duplicateEdge, .missingEdge:
+            "존재할 수 없는 엣지 색상 조합입니다. 엣지 두 칸을 확인해 주세요."
+        case .invalidCornerOrientationSum:
+            "코너 방향 합이 맞지 않습니다. 뒤틀린 코너 또는 인식 오류를 확인해 주세요."
+        case .invalidEdgeOrientationSum:
+            "엣지 방향 합이 맞지 않습니다. 뒤집힌 엣지 또는 인식 오류를 확인해 주세요."
+        case .permutationParityMismatch:
+            "코너와 엣지 permutation parity가 맞지 않습니다. 서로 바뀐 조각의 색상을 확인해 주세요."
+        }
+    }
+
+    private func guideFaceLabel(for slot: CubePoseFaceSlot) -> String {
+        let pose: CubeCapturePose = captureFlow.phase == .firstCorner ? .upperFrontRight : .downBackLeft
+        return pose.face(for: slot).rawValue
+    }
+
+    private func recommendedLessonTitle(for diagnosis: CubePracticeDiagnosis) -> String {
+        CurriculumCatalog.builtIn
+            .first(where: { $0.track == diagnosis.recommendedCurriculumTrack })?
+            .lessons
+            .first(where: { $0.id == diagnosis.recommendedLessonID })?
+            .title
+            ?? diagnosis.title
+    }
+
+    private func guideLabelPosition(
+        for quadrilateral: CubeNormalizedGuideQuadrilateral,
+        in size: CGSize
+    ) -> CGPoint {
+        let centerX = (
+            quadrilateral.topLeft.x + quadrilateral.topRight.x
+                + quadrilateral.bottomRight.x + quadrilateral.bottomLeft.x
+        ) / 4
+        let centerY = (
+            quadrilateral.topLeft.y + quadrilateral.topRight.y
+                + quadrilateral.bottomRight.y + quadrilateral.bottomLeft.y
+        ) / 4
+        return CGPoint(x: centerX * size.width, y: centerY * size.height)
+    }
+
+    private func resetScan() {
+        firstCapture = nil
+        secondCapture = nil
+        didConfirmLowConfidence = false
+        for index in faces.indices {
+            faces[index].stickers = Array(repeating: faces[index].centerAnchor, count: 9)
+            faces[index].confidences = Array(repeating: 0, count: 9)
+        }
+        validationMessage = "54칸을 확인하면 cubie와 parity를 검증합니다."
+        validatedDiagnosis = nil
+        isLegalCubeState = false
+        captureFlow.reset()
+        camera.start()
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+}
+
+private struct GuideQuadrilateralShape: Shape {
+    let quadrilateral: CubeNormalizedGuideQuadrilateral
+
+    func path(in rect: CGRect) -> Path {
+        func point(_ normalized: CubeNormalizedGuidePoint) -> CGPoint {
+            CGPoint(
+                x: rect.minX + normalized.x * rect.width,
+                y: rect.minY + normalized.y * rect.height
+            )
+        }
+
+        var path = Path()
+        path.move(to: point(quadrilateral.topLeft))
+        path.addLine(to: point(quadrilateral.topRight))
+        path.addLine(to: point(quadrilateral.bottomRight))
+        path.addLine(to: point(quadrilateral.bottomLeft))
+        path.closeSubpath()
+
+        for fraction in [1.0 / 3.0, 2.0 / 3.0] {
+            path.move(to: point(interpolate(
+                from: quadrilateral.topLeft,
+                to: quadrilateral.bottomLeft,
+                fraction: fraction
+            )))
+            path.addLine(to: point(interpolate(
+                from: quadrilateral.topRight,
+                to: quadrilateral.bottomRight,
+                fraction: fraction
+            )))
+
+            path.move(to: point(interpolate(
+                from: quadrilateral.topLeft,
+                to: quadrilateral.topRight,
+                fraction: fraction
+            )))
+            path.addLine(to: point(interpolate(
+                from: quadrilateral.bottomLeft,
+                to: quadrilateral.bottomRight,
+                fraction: fraction
+            )))
+        }
+        return path
+    }
+
+    private func interpolate(
+        from start: CubeNormalizedGuidePoint,
+        to end: CubeNormalizedGuidePoint,
+        fraction: Double
+    ) -> CubeNormalizedGuidePoint {
+        CubeNormalizedGuidePoint(
+            x: start.x + (end.x - start.x) * fraction,
+            y: start.y + (end.y - start.y) * fraction
+        )
+    }
+}
+
+#Preview("카메라 대체 흐름") {
+    NavigationStack {
+        CubeScanFeatureView()
+    }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "event": "333",
+  "generator": "TNoodle-WCA",
+  "generatorVersion": "1.2.3",
+  "officialReleaseURL": "https://github.com/thewca/tnoodle/releases/tag/v1.2.3",
+  "generatorSHA256": "e9ff6a164effee8a7ecdcc5c18111d4aa09d1de471b71de224889a1282d98cd5",
+  "signedBuild": true,
+  "count": 32768,
+  "poolSHA256": "b90257db20f387f94ef43083be6635430b9fc62c865023b6fe899653e3847d89",
+  "claim": "tnoodleGeneratedPractice"
+}

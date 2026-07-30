@@ -1,0 +1,132 @@
+import SwiftUI
+@preconcurrency import AVFoundation
+
+@MainActor
+public final class CubeCameraModel: ObservableObject {
+    @Published public private(set) var availability: CubeCameraAvailability = .idle
+    @Published public private(set) var liveRectangleCandidateCount = 0
+    @Published public private(set) var analysisWarning: String?
+    @Published public private(set) var isRunning = false
+    @Published public private(set) var isCapturing = false
+
+    let engine: CubeCameraSessionEngine
+
+    public init() {
+        let engine = CubeCameraSessionEngine()
+        self.engine = engine
+        engine.onRectangleCandidates = { [weak self] count in
+            Task { @MainActor in
+                self?.liveRectangleCandidateCount = count
+                self?.analysisWarning = nil
+            }
+        }
+        engine.onVisionAnalysisFailure = { [weak self] in
+            Task { @MainActor in
+                self?.analysisWarning = "품질 후보 분석을 재시도하고 있어요."
+            }
+        }
+    }
+
+    public func prepare() async {
+        guard availability != .requestingPermission else { return }
+        if availability == .ready {
+            analysisWarning = nil
+            start()
+            return
+        }
+
+        #if targetEnvironment(simulator)
+        availability = .unavailable("시뮬레이터에서는 카메라를 사용할 수 없어요.")
+        return
+        #else
+        let isAuthorized: Bool
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            isAuthorized = true
+        case .notDetermined:
+            availability = .requestingPermission
+            isAuthorized = await AVCaptureDevice.requestAccess(for: .video)
+        case .denied, .restricted:
+            isAuthorized = false
+        @unknown default:
+            isAuthorized = false
+        }
+
+        guard isAuthorized else {
+            availability = .denied
+            return
+        }
+
+        availability = .requestingPermission
+        analysisWarning = nil
+        do {
+            try await engine.configure()
+            availability = .ready
+            start()
+        } catch let error as CubeCameraSessionError {
+            availability = .unavailable(error.localizedDescription)
+        } catch {
+            availability = .failed("카메라를 준비하지 못했어요. 수동 확인으로 계속할 수 있어요.")
+        }
+        #endif
+    }
+
+    public func start() {
+        guard availability == .ready else { return }
+        engine.start()
+        isRunning = true
+    }
+
+    public func stop() {
+        engine.stop()
+        isRunning = false
+    }
+
+    public func capture() async throws -> CubePhotoAnalysis {
+        guard availability == .ready else {
+            throw CubeCameraSessionError.notReady
+        }
+        isCapturing = true
+        defer { isCapturing = false }
+        return try await engine.capturePhoto()
+    }
+
+    /// Captures and samples the three faces positioned inside the portrait
+    /// guide. It does not search the full image for an arbitrary cube.
+    public func capture(pose: CubeCapturePose) async throws -> CubePhotoAnalysis {
+        guard availability == .ready else {
+            throw CubeCameraSessionError.notReady
+        }
+        isCapturing = true
+        defer { isCapturing = false }
+        return try await engine.capturePhoto(pose: pose)
+    }
+}
+
+public struct CubeCameraPreview: UIViewRepresentable {
+    @ObservedObject private var camera: CubeCameraModel
+
+    public init(camera: CubeCameraModel) {
+        self.camera = camera
+    }
+
+    public func makeUIView(context: Context) -> CubeCameraPreviewView {
+        let view = CubeCameraPreviewView()
+        view.previewLayer.session = camera.engine.session
+        return view
+    }
+
+    public func updateUIView(_ uiView: CubeCameraPreviewView, context: Context) {
+        uiView.previewLayer.session = camera.engine.session
+    }
+}
+
+public final class CubeCameraPreviewView: UIView {
+    public override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
+
+    public var previewLayer: AVCaptureVideoPreviewLayer {
+        let layer = layer as! AVCaptureVideoPreviewLayer
+        layer.videoGravity = .resizeAspectFill
+        return layer
+    }
+}
