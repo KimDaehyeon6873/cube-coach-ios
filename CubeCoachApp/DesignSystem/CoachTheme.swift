@@ -1,7 +1,9 @@
 import SwiftUI
 
 extension Color {
-    static let coachAccent = Color(red: 0.29, green: 0.23, blue: 0.84)
+    /// Malta-informed Harbour Blue. The asset supplies light, dark, and
+    /// increased-contrast variants while keeping cube sticker colors separate.
+    static let coachAccent = Color("AccentColor")
     static let coachSuccess = Color(red: 0.08, green: 0.55, blue: 0.38)
     static let coachWarning = Color(red: 0.86, green: 0.48, blue: 0.08)
     static let coachPage = Color(uiColor: .systemGroupedBackground)

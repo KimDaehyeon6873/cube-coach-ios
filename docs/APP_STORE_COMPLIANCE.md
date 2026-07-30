@@ -111,6 +111,8 @@
 
 ### 2026-07-31 로컬 검증 증거
 
+- Malta-informed 브랜드 컬러는 공식 국기·George Cross·Maltese Cross·흰색/빨강 분할을 사용하지 않고, 지중해와 석회암의 일반적 색 대비만 독립적으로 해석했다. Malta 정부는 국기·문장의 디자인 편입에 권한 조건을 명시하므로 앱과 메타데이터에서 공식성·제휴를 주장하지 않는다. 결정 근거와 출처는 `docs/BRAND_COLOR_RESEARCH.md`에 기록했다.
+- Harbour Blue 적용 후 iPhone 13 mini 라이트·다크와 iPhone 17 Pro 고대비 화면에서 주요 CTA·선택 탭·아이콘을 확인했다. Release + strict concurrency complete + warnings-as-errors `swift test`는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-malta-color-test.log`), generic iOS 무서명 Release archive도 Store validation 단계를 통과했다(`/tmp/CubeCoachMaltaColorArchive.25FPRT/CubeCoach.xcarchive`, `/tmp/cubecoach-malta-color-archive.log`).
 - iPhone 17 Pro와 새로 만든 iPhone 13 mini iOS 26.5 Simulator에서 오늘·학습·연습·기록·내 큐브 확인·카메라 대체 화면을 점검했다. 실행 중 타이머는 두 기기 모두 스크램블·전개도·내비게이션을 숨긴 검은 전체 화면으로 전환되고, 시간과 `화면 어디든 눌러 정지`만 표시됐다. 이는 시뮬레이터 레이아웃·상태 전환 증거이며 물리 기기의 입력 지연 검증을 대신하지 않는다.
 - iPhone 13 mini 점검에서 오늘 CTA의 불필요한 세 줄 줄바꿈과 기록 각주/다음 섹션 헤더 겹침을 확인해 각각 문구 축약과 세로 레이아웃 보강으로 수정했다. Accessibility Medium에서는 오늘 화면이 큰 글자를 자르지 않고 스크롤 가능한 흐름을 유지하는지 별도 확인했다.
 - 기기 매트릭스 최종 변경의 Release + strict concurrency complete + warnings-as-errors `swift test`는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했다(`/tmp/cubecoach-device-matrix-final2-test.log`). generic iOS 무서명 Release archive도 Store validation 단계를 통과했다(`/tmp/CubeCoachDeviceMatrixArchive.MzxOJm/CubeCoach.xcarchive`, `/tmp/cubecoach-device-matrix-final-archive.log`).

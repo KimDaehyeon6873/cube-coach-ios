@@ -30,21 +30,21 @@ private let outputDirectory = URL(
 )
 
 private let standardPalette = IconPalette(
-    background: color("#201A63"),
-    lattice: color("#FFF8EA"),
-    top: color("#F7F5EE"),
+    background: color("#075E79"),
+    lattice: color("#F1E6D2"),
+    top: color("#FFFDF8"),
     left: color("#27B477"),
     right: color("#F05A67"),
-    focus: color("#55D7F2")
+    focus: color("#75B6C5")
 )
 
 private let darkPalette = IconPalette(
-    background: color("#090A22"),
-    lattice: color("#F3F0FF"),
-    top: color("#D7D2FF"),
-    left: color("#6758DD"),
-    right: color("#45BED5"),
-    focus: color("#A99CFF")
+    background: color("#071E22"),
+    lattice: color("#D8C9AA"),
+    top: color("#F3E9D2"),
+    left: color("#27B477"),
+    right: color("#F05A67"),
+    focus: color("#61D6EE")
 )
 
 private let tintedPalette = IconPalette(
