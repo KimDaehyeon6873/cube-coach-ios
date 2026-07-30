@@ -82,14 +82,14 @@ public struct TimerFeatureView: View {
 
             Text(
                 model.mode == .wcaPractice
-                    ? "15초 인스펙션 · +2/DNF 연습 판정"
-                    : "인스펙션 없이 바로 측정"
+                    ? "WCA 방식 · 15초 이후 +2, 17초 이후 DNF"
+                    : "준비되면 바로 측정"
             )
             .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
-        .accessibilityHint("WCA 방식 연습은 15초 인스펙션과 연습용 페널티를 적용합니다")
+        .accessibilityHint("15초 인스펙션 모드는 연습용 플러스 2와 DNF 판정을 적용합니다")
     }
 
     private func scramblePanel(isCompact: Bool) -> some View {
@@ -98,7 +98,7 @@ public struct TimerFeatureView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Label("3×3 스크램블", systemImage: "shuffle")
                         .font(.headline)
-                    Text("TNoodle 1.2.3 연습용 · 공식 대회용 아님")
+                    Text("TNoodle 1.2.3 생성 · 대회용 아님")
                         .font(.system(size: isCompact ? 11 : 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -161,7 +161,7 @@ public struct TimerFeatureView: View {
                         .frame(width: isCompact ? 132 : 176)
 
                         VStack(alignment: .leading, spacing: isCompact ? 3 : 5) {
-                            Text("검산 기준")
+                            Text("섞은 상태 확인")
                                 .font(
                                     .system(
                                         size: isCompact ? 14 : 15,
@@ -170,7 +170,7 @@ public struct TimerFeatureView: View {
                                 )
                             Text("U · 흰색 위")
                             Text("F · 초록색 앞")
-                            Text("전개도와 같으면 시작")
+                            Text("전개도와 맞는지 확인")
                                 .foregroundStyle(.secondary)
                         }
                         .font(.system(size: isCompact ? 12 : 13))
@@ -191,7 +191,7 @@ public struct TimerFeatureView: View {
         }
         .padding(isCompact ? 10 : 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+        .background(Color.coachSurface, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func timerPanel(isCompact: Bool) -> some View {
@@ -252,9 +252,9 @@ public struct TimerFeatureView: View {
                 model.startInspection()
             } label: {
                 timerControlSurface(
-                    text: "15초 인스펙션 시작",
+                    text: "인스펙션 시작",
                     icon: "eye.fill",
-                    color: model.isScrambleReady ? .blue : .gray,
+                    color: model.isScrambleReady ? .coachAccent : .gray,
                     isCompact: isCompact
                 )
             }
@@ -416,15 +416,15 @@ public struct TimerFeatureView: View {
         }
         return switch model.phase {
         case .idle:
-            model.mode == .free ? "길게 누르고, 초록색에서 떼세요." : "큐브를 섞었다면 시작하세요."
-        case .holding, .inspectionHolding: "조금 더 누르세요."
-        case .armed, .inspectionArmed: "손을 떼면 시작합니다."
-        case .inspection: "큐브를 살펴본 뒤 길게 눌러 준비하세요."
-        case .running: "화면 아무 곳이나 탭해 정지"
+            model.mode == .free ? "길게 누르세요. ‘손을 떼어 시작’이 보이면 놓으세요." : "큐브를 섞었다면 인스펙션을 시작하세요."
+        case .holding, .inspectionHolding: "‘손을 떼어 시작’이 보일 때까지 누르세요."
+        case .armed, .inspectionArmed: "손을 떼면 시작해요."
+        case .inspection: "큐브를 확인한 뒤 길게 눌러 준비하세요."
+        case .running: "화면 어디든 눌러 정지"
         case .stopped:
             model.mode == .free
-                ? "다음 스크램블을 섞은 뒤 길게 누르세요."
-                : "다음 스크램블을 섞은 뒤 인스펙션을 시작하세요."
+                ? "다음 스크램블대로 섞고 다시 누르세요."
+                : "다음 스크램블대로 섞고 인스펙션을 시작하세요."
         }
     }
 
@@ -434,9 +434,9 @@ public struct TimerFeatureView: View {
         return switch model.phase {
         case .running: "탭하여 정지"
         case .armed, .inspectionArmed: "손을 떼어 시작"
-        case .holding, .inspectionHolding: "계속 누르기"
-        case .inspection: "길게 눌러 준비"
-        default: "길게 눌러 준비"
+        case .holding, .inspectionHolding: "계속 누르세요"
+        case .inspection: "누르고 준비"
+        default: "누르고 준비"
         }
     }
 
@@ -459,7 +459,7 @@ public struct TimerFeatureView: View {
              .stopped where model.mode == .free:
             "두 번 탭하여 접근성 방식으로 바로 기록을 시작합니다"
         default:
-            "WCA 방식 연습에서는 먼저 인스펙션 시작 버튼을 사용합니다"
+            "15초 인스펙션 모드에서는 먼저 인스펙션 시작 버튼을 사용합니다"
         }
     }
 
@@ -470,7 +470,7 @@ public struct TimerFeatureView: View {
         case .holding, .inspectionHolding: .orange
         case .running: .red
         case .idle where model.mode == .wcaPractice: .gray
-        default: .blue
+        default: .coachAccent
         }
     }
 

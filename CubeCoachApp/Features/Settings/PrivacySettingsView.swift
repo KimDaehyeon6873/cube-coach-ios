@@ -16,7 +16,7 @@ struct PrivacySettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("카메라 이미지")
                             .font(.headline)
-                        Text("큐브 촬영 이미지는 기기 안에서만 처리하며 사진 앱이나 서버에 저장·전송하지 않습니다.")
+                        Text("촬영 이미지는 기기 안에서만 처리하고 저장하거나 전송하지 않아요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -30,7 +30,7 @@ struct PrivacySettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("학습 및 솔브 기록")
                             .font(.headline)
-                        Text("학습 진행, 타이머 기록, 복습 횟수와 일일 목표는 이 기기에만 저장됩니다. 계정, 광고, 분석 SDK 또는 클라우드 동기화를 사용하지 않습니다.")
+                        Text("학습 진행과 타이머 기록은 이 기기에만 저장해요. 계정, 광고, 분석 SDK, 클라우드 동기화는 사용하지 않아요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

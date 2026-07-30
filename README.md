@@ -43,7 +43,7 @@ CubeCoach는 3×3×3 큐브를 **대신 풀어 주는 앱이 아니라**, 사용
 - 가이드 정렬식 두 포즈 카메라 입력, 투시 보정, 3×3 표본 추출, 센터 기준 색 분류와 자동 54칸 후보 복원
 - 색 수·조각 유일성·코너/엣지 방향 합·cubie permutation parity를 검사하는 상태 검증
 - 스캔 단계 진단과 대표 연습 추천 연결. 추천 화면의 전개도는 촬영한 54칸 상태 자체를 재현하지 않음
-- PB, 세션 평균, 완주율, 일관성, current/best Ao5·Ao12와 최근 기록 추세를 제공하는 기록 화면
+- 최고 기록, 전체 평균, 완주율, 기록 편차, current/best Ao5·Ao12와 최근 기록 추세를 제공하는 기록 화면
 - 앱 내 개인정보 처리방침 링크와 모든 로컬 학습·솔브 데이터 삭제
 
 다음 항목은 아직 제품 수준으로 완성되었다고 보지 않습니다.
@@ -89,6 +89,7 @@ Xcode에서 `CubeCoach` 스킴과 iOS 17 이상 대상을 선택해 실행합니
 | 문서 | 내용 |
 | --- | --- |
 | [`DESIGN.md`](DESIGN.md) | 제품·UI/UX의 저장소 내 기준 |
+| [`docs/UI_UX_AUDIT.md`](docs/UI_UX_AUDIT.md) | 2026-07-31 전체 UI·UX 라이팅·브랜드 감사와 남은 우선순위 |
 | [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) | 페르소나, JTBD, IA, MVP, 성공 지표 |
 | [`docs/LEARNING_EXPERIENCE.md`](docs/LEARNING_EXPERIENCE.md) | 물리 큐브 학습 계약, H0–H5, 2D stepper, 증거·출시 게이트 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 모듈 경계, 2포즈 스캔, 스크램블, 개인정보 |

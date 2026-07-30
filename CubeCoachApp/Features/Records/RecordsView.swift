@@ -44,13 +44,13 @@ struct RecordsView: View {
             Section {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 12)], spacing: 12) {
                     statCard(
-                        title: "개인 최고",
+                        title: "최고 기록",
                         value: centisecondText(statistics.personalBest?.officialCentiseconds),
-                        detail: "PB",
+                        detail: "단일 솔브",
                         icon: "trophy.fill"
                     )
                     statCard(
-                        title: "세션 평균",
+                        title: "전체 평균",
                         value: timeText(statistics.sessionAverage),
                         detail: statistics.validSolveCount == 0 ? "유효 기록 없음" : "\(statistics.validSolveCount)회 기준",
                         icon: "timer"
@@ -62,9 +62,9 @@ struct RecordsView: View {
                         icon: "checkmark.circle.fill"
                     )
                     statCard(
-                        title: "일관성",
+                        title: "기록 편차",
                         value: consistencyText,
-                        detail: consistency == nil ? "유효 기록 2회부터" : "최근 최대 25회 표준편차",
+                        detail: consistency == nil ? "유효 기록 2회부터" : "최근 기록이 평균에서 벗어난 정도",
                         icon: "waveform.path.ecg"
                     )
                     averageCard(
@@ -81,9 +81,9 @@ struct RecordsView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             } header: {
-                Text("솔빙 요약")
+                Text("솔브 요약")
             } footer: {
-                Text("세션 평균과 일관성은 DNF를 제외합니다. Ao5·Ao12는 WCA 방식으로 계산합니다.")
+                Text("전체 평균과 기록 편차는 DNF를 제외해요. Ao5·Ao12는 WCA 방식으로 계산합니다.")
             }
 
             Section("시간 추세") {

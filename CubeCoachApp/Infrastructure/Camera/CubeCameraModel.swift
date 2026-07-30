@@ -22,7 +22,7 @@ public final class CubeCameraModel: ObservableObject {
         }
         engine.onVisionAnalysisFailure = { [weak self] in
             Task { @MainActor in
-                self?.analysisWarning = "품질 후보 분석을 재시도하고 있어요."
+                self?.analysisWarning = "화면 분석을 다시 시도하고 있어요."
             }
         }
     }

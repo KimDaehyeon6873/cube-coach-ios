@@ -109,7 +109,7 @@ public struct CubeScanFeatureView: View {
     @State private var didConfirmLowConfidence = false
     @State private var captureError: String?
     @State private var isManualFallbackConfirmationPresented = false
-    @State private var validationMessage = "54칸을 확인하면 cubie와 parity를 검증합니다."
+    @State private var validationMessage = "54칸을 확인하면 색상 수량과 조각 구성을 검사해요."
     @State private var validatedDiagnosis: CubePracticeDiagnosis?
     @State private var isLegalCubeState = false
 
@@ -121,18 +121,29 @@ public struct CubeScanFeatureView: View {
 
     private var phaseTitle: String {
         switch captureFlow.phase {
-        case .firstCorner: "1차 · 첫 꼭짓점"
-        case .oppositeCorner: "2차 · 반대 꼭짓점"
-        case .review: "확인 · 수정"
+        case .firstCorner: "1단계 · 앞쪽 3면"
+        case .oppositeCorner: "2단계 · 반대쪽 3면"
+        case .review: "3단계 · 54칸 확인"
+        }
+    }
+
+    private var phaseInstruction: String {
+        switch captureFlow.phase {
+        case .firstCorner:
+            "흰색 U를 위, 초록색 F를 앞, 빨간색 R을 오른쪽 안내선에 맞추세요."
+        case .oppositeCorner:
+            "큐브를 반대 꼭짓점으로 돌려 노란색 D, 주황색 L, 파란색 B를 안내선에 맞추세요."
+        case .review:
+            "인식한 54칸을 실제 큐브와 비교해 수정하세요."
         }
     }
 
     private var manualFallbackConfirmationTitle: String {
         switch captureFlow.phase {
         case .firstCorner:
-            "첫 U·F·R 촬영을 건너뛸까요?"
+            "첫 촬영 없이 계속할까요?"
         case .oppositeCorner:
-            "두 번째 D·L·B 촬영을 건너뛸까요?"
+            "두 번째 촬영 없이 계속할까요?"
         case .review:
             "수동 확인으로 계속할까요?"
         }
@@ -153,7 +164,7 @@ public struct CubeScanFeatureView: View {
             .padding(20)
         }
         .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle("내 큐브로 연습")
+        .navigationTitle("내 큐브 확인")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { camera.stop() }
         .onChange(of: scenePhase) { _, newPhase in
@@ -180,12 +191,12 @@ public struct CubeScanFeatureView: View {
             isPresented: $isManualFallbackConfirmationPresented,
             titleVisibility: .visible
         ) {
-            Button("이 촬영 건너뛰기 · 54칸 직접 확인") {
+            Button("촬영 건너뛰기") {
                 acceptManualCapture()
             }
             Button("취소", role: .cancel) {}
         } message: {
-            Text("자동 인식값 없이 다음 단계로 이동합니다. 두 포즈를 마치면 54칸 전체를 실제 큐브와 대조해 직접 수정해야 합니다.")
+            Text("이 촬영의 인식값 없이 다음 단계로 이동해요. 마지막에 54칸 전체를 실제 큐브와 비교해 주세요.")
         }
     }
 
@@ -200,7 +211,7 @@ public struct CubeScanFeatureView: View {
             }
             Text(phaseTitle)
                 .font(.headline)
-            Text("먼저 흰 센터를 위(U), 초록 센터를 앞(F), 빨강 센터를 오른쪽(R)에 맞추고, 다음 촬영은 반대 꼭짓점의 노랑(D)·주황(L)·파랑(B)을 안내선에 맞추세요.")
+            Text(phaseInstruction)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -210,9 +221,9 @@ public struct CubeScanFeatureView: View {
     private var principleCard: some View {
         Label {
             VStack(alignment: .leading, spacing: 3) {
-                Text("해답 대신 연습을 돕는 온디바이스 촬영")
+                Text("사진은 기기 안에서만 확인해요")
                     .font(.subheadline.weight(.semibold))
-                Text("사진은 저장하거나 네트워크로 전송하지 않아요. 표준 6색 배치(흰-노랑, 초록-파랑, 빨강-주황 반대)를 기준으로 안내선 안의 3면만 기기에서 분석하며, 임의 사진 속 큐브를 찾는 완전 자동 detector는 아닙니다.")
+                Text("두 장의 사진에서 안내선 안쪽 3면만 분석해요. 사진을 저장하거나 전송하지 않으며, 인식 결과는 직접 수정할 수 있어요.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -263,15 +274,15 @@ public struct CubeScanFeatureView: View {
                 } label: {
                     Label(
                         captureFlow.didFailCurrentCapture
-                            ? "촬영 실패 · 54칸 수동 확인으로 계속"
-                            : "촬영 없이 54칸 수동 확인으로 계속",
+                            ? "촬영 실패 · 직접 입력으로 계속"
+                            : "촬영 없이 직접 입력",
                         systemImage: "square.and.pencil"
                     )
                 }
                 .buttonStyle(.bordered)
                 .disabled(camera.isCapturing)
 
-                Text("자동 촬영이 어렵거나 원하지 않을 때만 사용하세요. 확인 후 현재 3면 촬영을 건너뜁니다.")
+                Text("현재 3면은 자동 인식값 없이 넘어가고 마지막에 직접 확인해요.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -299,7 +310,10 @@ public struct CubeScanFeatureView: View {
         .overlay(alignment: .topTrailing) {
             if camera.availability == .ready {
                 Label(
-                    camera.analysisWarning ?? "품질 후보 \(camera.liveRectangleCandidateCount)",
+                    camera.analysisWarning
+                        ?? (camera.liveRectangleCandidateCount > 0
+                            ? "안내선 맞음 · 촬영 가능"
+                            : "큐브를 안내선에 맞추세요"),
                     systemImage: camera.analysisWarning == nil ? "viewfinder" : "exclamationmark.triangle.fill"
                 )
                     .font(.caption.weight(.semibold))
@@ -393,12 +407,12 @@ public struct CubeScanFeatureView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
                 captureFlow.phase == .firstCorner
-                    ? "1차 안내선: 위쪽 흰 U · 왼쪽 초록 F · 오른쪽 빨강 R"
-                    : "2차 안내선: 위쪽 노랑 D · 왼쪽 주황 L · 오른쪽 파랑 B",
+                    ? "첫 촬영 · U / F / R"
+                    : "두 번째 촬영 · D / L / B",
                 systemImage: captureFlow.phase == .firstCorner ? "1.circle.fill" : "2.circle.fill"
             )
             .font(.subheadline.weight(.semibold))
-            Text("빛 반사를 줄이고 각 면의 3×3 전체와 중앙 스티커를 흰 안내선 안에 맞춰 주세요. 촬영 후 자동 색상 분류 결과와 낮은 신뢰도 칸을 직접 확인합니다.")
+            Text("빛 반사를 줄이고 각 면의 3×3 전체를 흰 안내선 안에 맞추세요. 촬영 뒤 인식이 불확실한 칸을 직접 확인해요.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -451,7 +465,7 @@ public struct CubeScanFeatureView: View {
                 guard let validatedDiagnosis else { return }
                 onStartPractice(validatedDiagnosis)
             } label: {
-                Text("확인 완료 · 회상 연습으로 이동")
+                Text("상태 확인하고 다음 연습 보기")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             }
@@ -459,8 +473,8 @@ public struct CubeScanFeatureView: View {
             .disabled(!didConfirmLowConfidence || !isLegalCubeState)
 
             Text(isLegalCubeState
-                ? "합법적인 큐브 상태와 사용자 확인이 모두 완료되어야 연습을 시작할 수 있습니다."
-                : "색상 수량뿐 아니라 코너·엣지 조합, 방향 합, permutation parity가 모두 맞아야 연습할 수 있습니다.")
+                ? "확인 가능한 큐브 상태이고 54칸 대조까지 마치면 연습을 시작할 수 있어요."
+                : "색상 수량과 코너·엣지 조합, 조각 방향이 모두 맞아야 연습할 수 있어요.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -576,7 +590,7 @@ public struct CubeScanFeatureView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
-            Text("색상별 9개와 센터에 이어 코너·엣지 조합, 방향 합, permutation parity까지 즉시 검증합니다.")
+            Text("색상별 9개와 센터 방향, 코너·엣지 조합과 조각 방향을 함께 검사해요.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -602,18 +616,23 @@ public struct CubeScanFeatureView: View {
 
     private var confidenceSummary: some View {
         let captures = [firstCapture, secondCapture].compactMap { $0 }
-        let candidateTotal = captures.map(\.candidateCount).reduce(0, +)
         let usedManual = captures.contains(where: \.wasManual)
 
         return HStack(alignment: .top, spacing: 12) {
             Image(systemName: lowConfidenceCellCount > 0 || usedManual ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                 .foregroundStyle(lowConfidenceCellCount > 0 || usedManual ? .orange : .green)
             VStack(alignment: .leading, spacing: 4) {
-                Text(lowConfidenceCellCount > 0 || usedManual ? "낮은 신뢰도 · 사용자 확인 필요" : "자동 분류 신뢰도 양호 · 그래도 확인 필요")
+                Text(
+                    usedManual
+                        ? "54칸을 모두 확인해 주세요"
+                        : lowConfidenceCellCount > 0
+                            ? "확인 필요한 칸 \(lowConfidenceCellCount)개"
+                            : "자동 분류가 끝났어요"
+                )
                     .font(.subheadline.weight(.semibold))
                 Text(usedManual
-                    ? "수동 초안이 포함되어 54칸 전체 확인이 필요합니다."
-                    : "두 촬영의 품질 후보 \(candidateTotal)개, 낮은 색상 분류 신뢰도 \(lowConfidenceCellCount)칸입니다.")
+                    ? "직접 입력한 칸을 포함해 실제 큐브와 비교해 주세요."
+                    : "인식한 54칸을 실제 큐브와 비교해 주세요.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -626,7 +645,7 @@ public struct CubeScanFeatureView: View {
     private var legalityValidation: some View {
         Label {
             VStack(alignment: .leading, spacing: 4) {
-                Text(isLegalCubeState ? "합법적인 3×3 상태" : "큐브 상태를 다시 확인해 주세요")
+                Text(isLegalCubeState ? "확인 가능한 3×3 상태" : "큐브 상태를 다시 확인해 주세요")
                     .font(.subheadline.weight(.semibold))
                 Text(validationMessage)
                     .font(.caption)
@@ -772,7 +791,7 @@ public struct CubeScanFeatureView: View {
             let state = try CubeState(faceletString: faceletString)
             isLegalCubeState = true
             validatedDiagnosis = state.practiceDiagnosis
-            validationMessage = "색상 수량, cubie 구성, 코너·엣지 방향 합과 permutation parity가 모두 유효합니다."
+            validationMessage = "색상 수량, 코너·엣지 조합과 조각 방향이 모두 맞아요."
         } catch let error as CubeStateValidationError {
             isLegalCubeState = false
             validatedDiagnosis = nil
@@ -803,7 +822,7 @@ public struct CubeScanFeatureView: View {
         case .invalidEdgeOrientationSum:
             "엣지 방향 합이 맞지 않습니다. 뒤집힌 엣지 또는 인식 오류를 확인해 주세요."
         case .permutationParityMismatch:
-            "코너와 엣지 permutation parity가 맞지 않습니다. 서로 바뀐 조각의 색상을 확인해 주세요."
+            "코너와 엣지의 짝이 맞지 않아요. 서로 바뀐 조각이 없는지 확인해 주세요."
         }
     }
 
@@ -844,7 +863,7 @@ public struct CubeScanFeatureView: View {
             faces[index].stickers = Array(repeating: faces[index].centerAnchor, count: 9)
             faces[index].confidences = Array(repeating: 0, count: 9)
         }
-        validationMessage = "54칸을 확인하면 cubie와 parity를 검증합니다."
+        validationMessage = "54칸을 확인하면 색상 수량과 조각 구성을 검사해요."
         validatedDiagnosis = nil
         isLegalCubeState = false
         captureFlow.reset()

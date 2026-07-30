@@ -17,7 +17,7 @@ public enum CubeCameraSessionError: LocalizedError, Sendable {
         case .configurationFailed: "카메라 구성을 완료하지 못했어요."
         case .notReady: "카메라가 아직 준비되지 않았어요."
         case .captureFailed: "사진 품질을 확인하지 못했어요. 다시 촬영해 주세요."
-        case .visionAnalysisFailed: "사진의 사각형 품질 후보를 분석하지 못했어요. 다시 촬영해 주세요."
+        case .visionAnalysisFailed: "사진에서 큐브 면을 찾지 못했어요. 안내선에 맞춰 다시 촬영해 주세요."
         case .guidedFaceExtractionFailed:
             "큐브를 촬영 가이드에 맞춰 다시 촬영해 주세요. 이 기능은 가이드 영역만 분석합니다."
         }

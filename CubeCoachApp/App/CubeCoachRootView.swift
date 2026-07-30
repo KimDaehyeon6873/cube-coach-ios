@@ -29,6 +29,7 @@ struct CubeCoachRootView: View {
                 .tabItem { Label("기록", systemImage: "chart.xyaxis.line") }
                 .tag(CubeCoachTab.records)
         }
+        .tint(.coachAccent)
         .alert(
             "학습 기록 복구 알림",
             isPresented: Binding(

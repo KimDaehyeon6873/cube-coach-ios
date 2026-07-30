@@ -6,10 +6,10 @@ struct LearnRoadmapView: View {
     var body: some View {
         List {
             Section {
-                Text("학습에서는 설명과 시범을 모두 보고 따라 돌립니다. 준비되면 복습에서 단서를 가리고 확인하세요.")
+                Text("그림과 동작을 보며 따라 하세요. 익숙해지면 복습에서 공식을 가리고 직접 돌려 보세요.")
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("학습 안내. 설명과 시범을 모두 보고 따라 돌린 뒤, 복습에서 단서를 가리고 확인합니다.")
-                Text("학습 열람만으로는 숙달 기록이 생기지 않습니다.")
+                    .accessibilityLabel("학습 안내. 그림과 동작을 보며 따라 한 뒤, 복습에서 공식을 가리고 직접 돌려 보세요.")
+                Text("학습 화면만 본 것은 복습 기록으로 계산하지 않아요.")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Color.coachAccent)
             }
@@ -29,7 +29,7 @@ struct LearnRoadmapView: View {
                             Text(stage.title).font(.headline)
                             Text(stage.subtitle).font(.subheadline).foregroundStyle(.secondary)
                             let completed = stage.caseIDs.filter { store.progressValue(for: $0).repetitions > 0 }.count
-                            Label("공식 \(stage.caseIDs.count)개 · 복습 기록 \(completed)개", systemImage: completed == stage.caseIDs.count ? "checkmark.circle.fill" : "circle.dashed")
+                            Label("연습 케이스 \(stage.caseIDs.count)개 · 복습 기록 \(completed)개", systemImage: completed == stage.caseIDs.count ? "checkmark.circle.fill" : "circle.dashed")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(completed == stage.caseIDs.count ? Color.coachSuccess : Color.secondary)
                         }
@@ -39,7 +39,7 @@ struct LearnRoadmapView: View {
             }
 
         }
-        .navigationTitle("공식 학습")
+        .navigationTitle("학습")
     }
 }
 
@@ -62,11 +62,11 @@ private struct StageDetailView: View {
                             Label("복습 기록 있음", systemImage: "checkmark.circle.fill")
                                 .labelStyle(.iconOnly)
                                 .foregroundStyle(Color.coachSuccess)
-                                .accessibilityLabel("복습 검증 기록 있음")
+                                .accessibilityLabel("복습 기록 있음")
                         }
                     }
                     Text(learningCase.family).font(.subheadline).foregroundStyle(.secondary)
-                    Text("시작 상태와 인식 단서, 모든 회전의 전후 상태를 보며 따라 합니다.")
+                    Text("시작 상태, 핵심 단서, 동작 전후를 차례로 확인해요.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

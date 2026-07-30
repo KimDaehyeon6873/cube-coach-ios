@@ -67,7 +67,7 @@
 ### TNoodle 연습 카탈로그
 
 - 현재 앱은 서명된 TNoodle-WCA 1.2.3 JAR로 오프라인 생성한 32,768개 고유 3×3 출력과 provenance manifest를 번들한다. JAR/JVM/AGPL 실행 코드는 앱에 포함하지 않는다.
-- 사용자 라벨은 `TNoodle 1.2.3으로 생성한 연습 스크램블 · 공식 대회용 아님`으로 유지한다.
+- 사용자 라벨은 `TNoodle 1.2.3 생성 · 대회용 아님`으로 유지하고, WCA 방식은 15초 인스펙션과 연습용 판정 설명에만 사용한다.
 - `WCA 공식`, `공인 대회용`, `WCA 승인 앱`, 무제한 런타임 TNoodle 서비스라고 홍보하지 않는다.
 
 ### 가이드 정렬 54칸 복원·cubie parity
@@ -88,7 +88,7 @@
 **검토 경로**
 
 1. 앱을 실행하면 계정·로그인이 없다.
-2. `내 큐브로 연습`에서 `카메라 사용 시작`을 누르면 선택적으로 카메라 접근을 요청한다.
+2. `내 큐브 확인`에서 `카메라 사용 시작`을 누르면 선택적으로 카메라 접근을 요청한다.
 3. 카메라를 거부해도 `수동 확인으로 계속`을 탭해 학습·타이머를 계속 사용할 수 있다.
 4. 카메라 프레임과 촬영 JPEG는 표준 6색 큐브의 가이드 정렬 두 포즈에서 54칸 후보를 만들기 위해 기기 안에서 일시 처리하며 저장·업로드하지 않는다. **이 문장은 릴리스 네트워크/파일 감사가 통과한 경우에만 제출한다.**
 5. 사용자는 셀별 신뢰도를 보고 54칸을 확인·수정한다. 앱은 색 수·cubie 방향·순열 parity를 포함한 상태 유효성을 검사하고 합법 상태에서 다음 회상 연습 단계를 추천한다.
@@ -111,6 +111,10 @@
 
 ### 2026-07-31 로컬 검증 증거
 
+- UI·UX 라이팅·브랜드 감사 결과와 실기기 전 필수 항목을 `docs/UI_UX_AUDIT.md`에 기록했다. iPhone SE 3세대 Simulator의 라이트·다크 모드에서 오늘·학습·연습·기록 화면을 확인했고, 연습 화면은 스크롤 없이 한 화면에 유지됐다.
+- 앱 아이콘 기본·다크·틴트 자산은 각각 1024×1024이며 모든 픽셀의 alpha가 255임을 확인했다. 자동 해결을 암시하던 순환 화살표·체크·그라디언트를 제거하고, 흰색 U 기준과 회전 대상 레이어를 표현했다.
+- UI 감사 후 Release + strict concurrency complete + warnings-as-errors `swift test`: Swift Testing 115개와 XCTest 4개가 각각 실패 없이 통과(`/tmp/cubecoach-ui-ux-final2-test.log`).
+- UI 감사 후 generic iOS Release archive(`/tmp/CubeCoachUIUXFinalArchive.refIcU/CubeCoach.xcarchive`, 로그 `/tmp/cubecoach-ui-ux-final-archive.log`)가 strict concurrency complete·warnings-as-errors 및 Store validation 단계를 통과했다. 이는 `CODE_SIGNING_ALLOWED=NO`인 로컬 구조 검증용이다.
 - 최종 Release + strict concurrency complete + warnings-as-errors `swift test`: Swift Testing 115개와 XCTest 4개가 각각 실패 없이 통과(`/tmp/cubecoach-final-swift-test.log`).
 - Xcode 26.6 / iOS 26.5 iPhone SE 3세대 Simulator에서 최종 strict concurrency complete + warnings-as-errors 빌드 성공(`/tmp/cubecoach-final-xcodebuild.log`). AppIntents 의존성이 없어 메타데이터 추출을 건너뛴다는 Xcode 도구 경고만 있었으며 빌드는 성공했다.
 - 타이머 화면 구현에 `ScrollView`가 없고, 연습 탭에서 추가 화면 이동 없이 스크램블·검산용 큐브 전개도·타이머를 한 화면에 표시함을 확인했다.
@@ -153,4 +157,4 @@
 
 현 프로토타입은 Xcode 26.6 환경 정합과 시뮬레이터 빌드·설치·실행, iOS 26.5 SDK 무서명 Release archive 검증, 구체적인 카메라 목적 문자열, 가이드 정렬 54칸 후보·cubie parity 검사, 로컬 우선 설계와 Privacy Manifest, 앱 내 개인정보 처리방침 링크와 전체 로컬 데이터 삭제, 초급 기초·2-Look 입문만 남긴 출시 UI를 갖췄다.
 
-아직 **개인정보 URL의 공개 HTTPS 응답, 지원 연락처, 서명된 배포 archive와 Privacy Report, 물리 iPhone 카메라 검증, 최종 App Privacy·암호화 판정, 콘텐츠·TNoodle 권리 감사와 App Store Connect 메타데이터**가 남아 있어 심사 제출 준비 완료는 아니다. App Review 2.1·2.2·2.3에 맞춰 임시·미출시 기능을 제품처럼 노출하지 않고, 가이드 정렬 스캔·유한 연습 스크램블·출시 커리큘럼의 한계를 정확히 설명해야 한다.
+아직 **지원 연락처, 서명된 배포 archive와 Privacy Report, 물리 iPhone 카메라 검증, 최종 App Privacy·암호화 판정, 콘텐츠·TNoodle 권리 감사와 App Store Connect 메타데이터**가 남아 있어 심사 제출 준비 완료는 아니다. App Review 2.1·2.2·2.3에 맞춰 임시·미출시 기능을 제품처럼 노출하지 않고, 가이드 정렬 스캔·유한 연습 스크램블·출시 커리큘럼의 한계를 정확히 설명해야 한다.

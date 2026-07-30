@@ -1,9 +1,11 @@
 import SwiftUI
 
 extension Color {
-    static let coachAccent = Color(red: 0.31, green: 0.24, blue: 0.88)
+    static let coachAccent = Color(red: 0.29, green: 0.23, blue: 0.84)
     static let coachSuccess = Color(red: 0.08, green: 0.55, blue: 0.38)
     static let coachWarning = Color(red: 0.86, green: 0.48, blue: 0.08)
+    static let coachPage = Color(uiColor: .systemGroupedBackground)
+    static let coachSurface = Color(uiColor: .secondarySystemGroupedBackground)
 }
 
 struct CoachCard<Content: View>: View {
@@ -12,8 +14,12 @@ struct CoachCard<Content: View>: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(18)
+            .background(Color.coachSurface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.primary.opacity(0.055), lineWidth: 1)
+            }
     }
 }
 
@@ -23,7 +29,7 @@ struct SectionHeading: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(.title2.bold())
+            Text(title).font(.title3.bold())
             Spacer()
             if let detail { Text(detail).font(.subheadline).foregroundStyle(.secondary) }
         }

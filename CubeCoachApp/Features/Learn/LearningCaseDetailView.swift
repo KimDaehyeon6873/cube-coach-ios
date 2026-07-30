@@ -38,11 +38,11 @@ struct LearningCaseDetailView: View {
     private var learningPurpose: some View {
         CoachCard {
             VStack(alignment: .leading, spacing: 8) {
-                Label("보고, 이해하고, 그대로 돌려보기", systemImage: "hand.tap")
+                Label("보고 이해한 뒤 따라 돌리기", systemImage: "hand.tap")
                     .font(.headline)
-                Text("여기서는 모든 단서를 열어 둡니다. 천천히 따라 돌리며 손의 순서를 익혀 보세요.")
+                Text("모든 단서를 보며 천천히 따라 돌리고, 손의 순서를 익혀 보세요.")
                     .foregroundStyle(.secondary)
-                Text("학습 화면을 본 것만으로는 숙달이나 복습 기록이 생기지 않습니다.")
+                Text("학습 화면만 본 것은 복습 기록으로 계산하지 않아요.")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Color.coachAccent)
             }
@@ -61,7 +61,7 @@ struct LearningCaseDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("기준 방향", systemImage: "scope")
                         .font(.headline)
-                    Text("U(흰색 중심)는 위, F(초록색 중심)는 나를 향하게 둡니다.")
+                    Text("흰색 U는 위, 초록색 F는 앞을 향하게 두세요.")
                         .font(.subheadline)
                     CubeNetView(
                         facelets: exercise.startState.facelets,
@@ -126,7 +126,7 @@ struct LearningCaseDetailView: View {
             )
 
             LearningPlaybackView(
-                title: "공식 전체 공개 · \(learningCase.algorithm)",
+                title: "전체 공식 · \(learningCase.algorithm)",
                 snapshots: exercise.solutionPlayback,
                 moves: exercise.solution.moves,
                 selectedStep: $solutionStep
@@ -137,14 +137,14 @@ struct LearningCaseDetailView: View {
     private var verificationSection: some View {
         CoachCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("이제 단서를 가려 볼까요?", systemImage: "eye.slash")
+                Label("이제 가리고 떠올려 보세요", systemImage: "eye.slash")
                     .font(.headline)
                 Text("복습에서는 시작 상태만 보고, 모양 인식과 회전 순서를 직접 떠올립니다. 결과까지 확인한 시도만 복습 기록에 반영됩니다.")
                     .foregroundStyle(.secondary)
                 NavigationLink {
                     TrainerView(initialCases: [learningCase], mode: .review)
                 } label: {
-                    Label("가리고 확인하기", systemImage: "brain.head.profile")
+                    Label("공식 가리고 복습하기", systemImage: "brain.head.profile")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

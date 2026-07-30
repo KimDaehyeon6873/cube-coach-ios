@@ -12,9 +12,9 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("오늘 이어서 할 일")
+                    Text("오늘 할 일")
                         .font(.largeTitle.bold())
-                    Text("학습한 공식을 복습하고, 자유 솔빙 기록도 쌓아 보세요.")
+                    Text("복습할 공식을 확인하고, 솔브 기록을 이어가세요.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -24,7 +24,11 @@ struct TodayView: View {
                             .font(.headline)
                         Text("\(store.dueCases.count)개")
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        Text(store.dueCases.isEmpty ? "오늘 복습을 마쳤어요" : "학습에서 본 단서를 가리고, 실제 큐브로 떠올려 보세요.")
+                        Text(
+                            store.dueCases.isEmpty
+                                ? "오늘 복습은 끝났어요. 자유 연습으로 감각을 이어가세요."
+                                : "시작 상태를 보고 공식을 떠올린 뒤, 실물 큐브로 확인하세요."
+                        )
                             .foregroundStyle(.secondary)
                         if !store.dueCases.isEmpty {
                             NavigationLink {
@@ -39,11 +43,11 @@ struct TodayView: View {
                     }
                 }
 
-                SectionHeading(title: "복습 현황", detail: "결과까지 확인한 공식")
+                SectionHeading(title: "복습 진도", detail: "기록 기준")
                 CoachCard {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Label("확인한 공식", systemImage: "checkmark.seal")
+                            Label("복습 기록이 있는 공식", systemImage: "checkmark.seal")
                             Spacer()
                             Text("\(store.learnedCount) / \(store.catalog.count)")
                                 .monospacedDigit()
@@ -57,7 +61,7 @@ struct TodayView: View {
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
-                        "복습으로 확인한 공식, 전체 \(store.catalog.count)개 중 \(store.learnedCount)개"
+                        "복습 기록이 있는 공식, 전체 \(store.catalog.count)개 중 \(store.learnedCount)개"
                     )
                 }
 
@@ -70,8 +74,8 @@ struct TodayView: View {
                                 .font(.title)
                                 .foregroundStyle(Color.coachAccent)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("연습 시작").font(.headline)
-                                Text("TNoodle로 생성한 연습 스크램블로 섞고 기록을 시작하세요.")
+                                Text("타이머 연습").font(.headline)
+                                Text("스크램블을 확인하고 바로 기록하세요.")
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                             Spacer()
@@ -84,6 +88,7 @@ struct TodayView: View {
             }
             .padding()
         }
+        .background(Color.coachPage)
         .navigationTitle("오늘")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -80,7 +80,7 @@ struct TrainerView: View {
 
     private func progressHeader(index: Int) -> some View {
         HStack {
-            Label("상태 → 회전 → 결과", systemImage: "square.stack.3d.up.fill")
+            Label("준비 → 인식 → 실행 → 확인", systemImage: "square.stack.3d.up.fill")
             Spacer()
             Text("\(index + 1) / \(session.itemCount)")
         }
@@ -128,12 +128,12 @@ struct TrainerView: View {
 
             CoachCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("먼저 이 시작 상태를 만드세요")
+                    Text("1. 시작 상태 맞추기")
                         .font(.title2.bold())
-                    Label("기준 방향 · U는 위 · F는 앞", systemImage: "viewfinder")
+                    Label("흰색 U는 위 · 초록색 F는 앞", systemImage: "viewfinder")
                         .font(.subheadline.weight(.semibold))
                     CubeNetView(facelets: exercise.startState.facelets, presentation: .full)
-                    Text("케이스 이름과 정답 공식은 아직 숨겨져 있어요. 실물 큐브가 이 상태여야 다음 인식·실행 결과가 의미가 있습니다.")
+                    Text("공식은 아직 숨겨져 있어요. 전개도와 같은 상태를 만든 뒤 다음으로 넘어가세요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -150,7 +150,7 @@ struct TrainerView: View {
                             .font(.headline)
                         Text(exercise.acquisitionSupportLabel)
                             .font(.subheadline.weight(.semibold))
-                        Text("아래 동작은 완성된 큐브를 이 연습의 시작 상태로 만드는 방법입니다. 이 방법을 본 결과는 도움 없이 해낸 복습으로 계산하지 않아요.")
+                        Text("완성된 큐브에서 시작 상태를 만드는 동작이에요. 이 단계를 보면 도움을 사용한 복습으로 기록해요.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         playbackComparison(
@@ -181,7 +181,7 @@ struct TrainerView: View {
                     }
                     _ = self.attempt?.advance(from: .prepare)
                 } label: {
-                    Label("이미 같은 상태로 준비했어요", systemImage: "cube.fill")
+                    Label("이미 맞췄어요", systemImage: "cube.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -194,13 +194,13 @@ struct TrainerView: View {
                     showsSetupSupport = true
                     setupStep = 0
                 } label: {
-                    Label("시작 상태 만드는 법", systemImage: "arrow.triangle.2.circlepath")
+                    Label("시작 상태 만드는 법 보기", systemImage: "arrow.triangle.2.circlepath")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Text("첫 버튼은 실물 큐브가 전개도와 이미 같을 때만 사용하세요. 시작 상태 만드는 법을 보면 도움을 사용한 기록으로 남아요.")
+                Text("전개도와 같은 상태라면 ‘이미 맞췄어요’를 누르세요. 만드는 법을 보면 도움을 사용한 복습으로 기록해요.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -211,7 +211,7 @@ struct TrainerView: View {
         VStack(alignment: .leading, spacing: 16) {
             CoachCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("이 상태의 케이스는 무엇인가요?")
+                    Text("이 패턴은 어떤 케이스인가요?")
                         .font(.title2.bold())
                     CubeNetView(facelets: exercise.startState.facelets, presentation: .full)
                 }
@@ -253,14 +253,14 @@ struct TrainerView: View {
             if needsRecognitionCorrection {
                 CoachCard {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("비교해서 바로잡기", systemImage: "eye.fill").font(.headline)
+                        Label("정답 확인", systemImage: "eye.fill").font(.headline)
                         Text("정답은 ‘\(learningCase.title)’예요.")
                         Text(learningCase.recognition)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                 }
-                Button("방향과 실행으로 계속") {
+                Button("방향 확인하고 돌리기") {
                     _ = attempt?.recordRecognition(.corrected)
                 }
                 .buttonStyle(.borderedProminent)
@@ -279,7 +279,7 @@ struct TrainerView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(learningCase.title).font(.title2.bold())
                     CubeNetView(facelets: exercise.startState.facelets, presentation: .full)
-                    Label("윗면 U · 앞면 F를 기준으로 실물 큐브를 잡으세요.", systemImage: "viewfinder")
+                    Label("흰색 U를 위로, 초록색 F를 앞으로 잡으세요.", systemImage: "viewfinder")
                         .font(.subheadline.weight(.semibold))
                 }
             }
@@ -290,7 +290,7 @@ struct TrainerView: View {
                 Button {
                     revealNextHint(after: currentAttempt.maxHint)
                 } label: {
-                    Label("다음 도움 보기", systemImage: "lightbulb")
+                    Label("도움 한 단계 더 보기", systemImage: "lightbulb")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -315,7 +315,7 @@ struct TrainerView: View {
                 .font(.subheadline)
         }
         if hint >= .h2 {
-            Label("U가 위, F가 앞이 되도록 방향을 고정하세요.", systemImage: "rotate.3d")
+            Label("흰색 U는 위, 초록색 F는 앞에 두세요.", systemImage: "rotate.3d")
                 .font(.subheadline)
             NotationPrimerView(presentation: .compact)
         }
@@ -360,20 +360,20 @@ struct TrainerView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("실물 큐브를 돌리세요").font(.title2.bold())
                         Label("U 위 · F 앞", systemImage: "viewfinder")
-                        Text("화면에는 공식이 표시되지 않아요. 다 돌리면 아래 버튼을 누르세요.")
+                        Text("공식은 보이지 않아요. 기억한 대로 돌린 뒤 완료를 누르세요.")
                             .foregroundStyle(.secondary)
                     }
                 }
-                Button("다 돌렸어요") { physicalExecutionFinished = true }
+                Button("돌리기 완료") { physicalExecutionFinished = true }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .frame(maxWidth: .infinity)
             } else {
                 CoachCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("내 큐브와 결과를 비교하세요").font(.title2.bold())
+                        Text("그림과 같은지 확인하세요").font(.title2.bold())
                         CubeNetView(facelets: finalProjectedFacelets(exercise: exercise), presentation: .full)
-                        Text("이 그림은 기대 결과예요. 색과 조각 위치를 직접 비교하세요.")
+                        Text("목표 상태와 내 큐브의 색·조각 위치를 비교하세요.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -385,9 +385,9 @@ struct TrainerView: View {
 
     private var comparisonButtons: some View {
         VStack(spacing: 10) {
-            comparisonButton("기대 상태와 같아요", icon: "checkmark.circle.fill", outcome: .matched)
-            comparisonButton("기대 상태와 달라요", icon: "xmark.circle.fill", outcome: .didNotMatch)
-            comparisonButton("잘 모르겠어요", icon: "questionmark.circle", outcome: .unsure)
+            comparisonButton("같아요", icon: "checkmark.circle.fill", outcome: .matched)
+            comparisonButton("달라요", icon: "xmark.circle.fill", outcome: .didNotMatch)
+            comparisonButton("확신이 없어요", icon: "questionmark.circle", outcome: .unsure)
         }
     }
 
@@ -420,7 +420,7 @@ struct TrainerView: View {
                             )
                         }
                         VStack {
-                            Text("기대 결과").font(.caption.bold())
+                            Text("목표 상태").font(.caption.bold())
                             CubeNetView(
                                 facelets: frames.last?.executionState.projectedFacelets ?? current.exercise.endState.facelets,
                                 presentation: .compact
@@ -449,7 +449,7 @@ struct TrainerView: View {
                 configureAttemptIfNeeded()
             } label: {
                 Label(
-                    current.index + 1 == session.itemCount ? "\(activityName) 마치기" : "다음 공식",
+                    current.index + 1 == session.itemCount ? "\(activityName) 마치기" : "다음 케이스",
                     systemImage: "arrow.right.circle.fill"
                 )
                     .frame(maxWidth: .infinity)
@@ -466,7 +466,7 @@ struct TrainerView: View {
             if session.reviewedCount == 0 {
                 Text(emptySessionDescription)
             } else {
-                Text("\(session.reviewedCount)개 공식의 시작 상태를 확인하고 직접 돌려봤어요.")
+                Text("\(session.reviewedCount)개 공식을 떠올리고 결과까지 확인했어요.")
             }
         }
     }
@@ -476,7 +476,7 @@ struct TrainerView: View {
         case .learning: "공식 학습"
         case .review: "공식 복습"
         case .practice: "공식 연습"
-        case .scanRecommendation: "추천 복습"
+        case .scanRecommendation: "추천 연습"
         }
     }
 

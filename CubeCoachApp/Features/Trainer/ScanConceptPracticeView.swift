@@ -40,7 +40,7 @@ struct ScanConceptPracticeView: View {
             }
             .padding()
         }
-        .navigationTitle("스캔 개념 연습")
+        .navigationTitle("추천 연습")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

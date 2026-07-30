@@ -10,7 +10,7 @@ public enum TimerPracticeMode: String, CaseIterable, Identifiable, Codable, Send
     var title: String {
         switch self {
         case .free: "자유 연습"
-        case .wcaPractice: "WCA 방식 연습"
+        case .wcaPractice: "15초 인스펙션"
         }
     }
 }

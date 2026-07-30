@@ -118,7 +118,7 @@ public enum CurriculumCatalog {
         note: "2-Look PLL 사례와 알고리즘 참고"
     )
 
-    public static let beginner = Curriculum(track: .beginner, title: "초급 · 레이어 해법 기초", lessons: [
+    public static let beginner = Curriculum(track: .beginner, title: "레이어 해법 기초", lessons: [
         CurriculumLesson(id: "beginner-cross", title: "흰색 십자", objective: "센터와 엣지의 상대 색을 맞추며 십자를 만든다.", algorithms: [], sources: [beginnerSource]),
         CurriculumLesson(id: "beginner-corners", title: "첫 층 코너", objective: "목표 코너를 반복 삽입하고 손동작을 암기한다.", algorithms: [
             executableSample(id: "right-trigger", name: "오른손 트리거", notation: "R U R' U'", recognitionHint: "삽입 슬롯을 오른쪽 앞에 둔다.", setup: "U R U' R'", chunks: [0, 2, 4]),
@@ -134,7 +134,7 @@ public enum CurriculumCatalog {
         ], sources: [beginnerSource])
     ])
 
-    public static let twoLookCFOP = Curriculum(track: .twoLookCFOP, title: "중급 · 2-Look CFOP 입문", lessons: [
+    public static let twoLookCFOP = Curriculum(track: .twoLookCFOP, title: "2-Look CFOP 시작", lessons: [
         CurriculumLesson(id: "cfop-f2l-foundation", title: "Cross + 직관 F2L 기초", objective: "십자를 계획하고 코너-엣지 쌍을 슬롯에 삽입한다.", algorithms: [
             executableSample(id: "f2l-basic", name: "기본 분리·삽입", notation: "U R U' R'", recognitionHint: "쌍을 만든 뒤 오른쪽 슬롯에 넣는다.", setup: "R U R' U'", chunks: [0, 2, 4])
         ], sources: [beginnerSource]),
