@@ -1,7 +1,9 @@
 import SwiftUI
 
-struct PrivacySettingsView: View {
+struct AppSettingsView: View {
     @EnvironmentObject private var store: LearningProgressStore
+    @AppStorage(AppAppearanceMode.storageKey)
+    private var appearanceMode: AppAppearanceMode = .system
     @State private var showsDeletionConfirmation = false
     @State private var showsDeletionResult = false
 
@@ -11,6 +13,22 @@ struct PrivacySettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                Picker("화면 모드", selection: $appearanceMode) {
+                    ForEach(AppAppearanceMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel("화면 모드")
+                .accessibilityHint("앱의 밝은 화면과 어두운 화면 사용 방식을 선택합니다")
+            } header: {
+                Text("화면 모드")
+            } footer: {
+                Text("시스템을 선택하면 iPhone의 화면 모드 설정을 따라요.")
+            }
+
             Section("개인정보 처리") {
                 Label {
                     VStack(alignment: .leading, spacing: 4) {
@@ -56,19 +74,20 @@ struct PrivacySettingsView: View {
                 }
                 .accessibilityHint("학습 진행과 솔브 기록을 이 기기에서 영구 삭제합니다")
             } footer: {
-                Text("학습 진행, 솔브 기록, 복습 횟수, 일일 목표와 손상 데이터 복구용 사본을 모두 삭제합니다. 이 작업은 되돌릴 수 없습니다.")
+                Text("학습 진행, 솔브 기록, 복습 횟수, 일일 목표, 화면 모드 설정과 손상 데이터 복구용 사본을 모두 삭제합니다. 이 작업은 되돌릴 수 없습니다.")
             }
         }
-        .navigationTitle("개인정보 및 데이터")
+        .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.inline)
         .alert("모든 로컬 데이터를 삭제할까요?", isPresented: $showsDeletionConfirmation) {
             Button("취소", role: .cancel) {}
             Button("모두 삭제", role: .destructive) {
                 store.deleteAllLocalData()
+                appearanceMode = .system
                 showsDeletionResult = true
             }
         } message: {
-            Text("학습 진행, 기록, 목표와 복구용 사본이 이 기기에서 영구 삭제됩니다.")
+            Text("학습 진행, 기록, 목표, 화면 모드 설정과 복구용 사본이 이 기기에서 영구 삭제됩니다.")
         }
         .alert("삭제 완료", isPresented: $showsDeletionResult) {
             Button("확인", role: .cancel) {}

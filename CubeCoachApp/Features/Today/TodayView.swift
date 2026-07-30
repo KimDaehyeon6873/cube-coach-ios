@@ -94,11 +94,11 @@ struct TodayView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    PrivacySettingsView()
+                    AppSettingsView()
                 } label: {
-                    Label("개인정보 및 데이터", systemImage: "gearshape")
+                    Label("설정", systemImage: "gearshape")
                 }
-                .accessibilityHint("개인정보 처리 안내와 로컬 데이터 관리 화면을 엽니다")
+                .accessibilityHint("화면 모드, 개인정보 처리 안내와 로컬 데이터 관리 화면을 엽니다")
             }
         }
     }

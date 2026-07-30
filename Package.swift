@@ -25,6 +25,7 @@ let package = Package(
             dependencies: ["CubeCoachCore"],
             path: "CubeCoachApp",
             exclude: [
+                "App/AppAppearanceMode.swift",
                 "App/CubeCoachApp.swift",
                 "App/CubeCoachRootView.swift",
                 "DesignSystem",
