@@ -32,3 +32,13 @@ import Testing
     #expect(flow == CubeScanCaptureFlow())
     #expect(flow.manualFallbackIsAvailable)
 }
+
+@Test func choosingManualEntrySkipsBothCameraPoses() {
+    var flow = CubeScanCaptureFlow()
+
+    flow.startManualReview()
+
+    #expect(flow.phase == .review)
+    #expect(!flow.didFailCurrentCapture)
+    #expect(!flow.manualFallbackIsAvailable)
+}

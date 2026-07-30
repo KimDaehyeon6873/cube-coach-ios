@@ -150,18 +150,31 @@ public struct CubeScanFeatureView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                header
-                principleCard
-
-                if captureFlow.phase == .review {
-                    reviewContent
-                } else {
-                    captureContent
+        Group {
+            if isEntryChoiceVisible {
+                entryChoice
+            } else if captureFlow.phase == .review {
+                ScrollView {
+                    VStack(spacing: 18) {
+                        header
+                        principleCard
+                        reviewContent
+                    }
+                    .padding(20)
+                }
+            } else {
+                ScrollView {
+                    VStack(spacing: 18) {
+                        header
+                        captureContent
+                        principleCard
+                    }
+                    .padding(20)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    captureActionBar
                 }
             }
-            .padding(20)
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("내 큐브 확인")
@@ -200,6 +213,71 @@ public struct CubeScanFeatureView: View {
         }
     }
 
+    private var isEntryChoiceVisible: Bool {
+        captureFlow.phase == .firstCorner && camera.availability == .idle
+    }
+
+    private var entryChoice: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 20)
+
+            VStack(spacing: 14) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundStyle(Color.coachAccent)
+                    .frame(width: 76, height: 76)
+                    .background(
+                        Color.coachAccent.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 22)
+                    )
+
+                VStack(spacing: 6) {
+                    Text("내 큐브 상태를 입력하세요")
+                        .font(.title2.bold())
+                    Text("두 번 촬영하면 54칸 초안을 만들어요. 사진 없이 직접 입력할 수도 있어요.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+
+            Spacer(minLength: 24)
+
+            VStack(spacing: 12) {
+                Button {
+                    Task { await camera.prepare() }
+                } label: {
+                    Label("카메라로 확인 시작", systemImage: "camera.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("카메라 권한을 확인하고 첫 번째 촬영을 시작합니다")
+
+                Button {
+                    startManualReview()
+                } label: {
+                    Label("사진 없이 54칸 직접 입력", systemImage: "square.and.pencil")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+
+                Label(
+                    "사진은 기기 안에서만 처리하며 저장하거나 전송하지 않아요.",
+                    systemImage: "lock.shield"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            }
+
+            Spacer(minLength: 20)
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
@@ -221,9 +299,9 @@ public struct CubeScanFeatureView: View {
     private var principleCard: some View {
         Label {
             VStack(alignment: .leading, spacing: 3) {
-                Text("사진은 기기 안에서만 확인해요")
+                Text("사진과 입력한 54칸은 기기 안에서만 확인해요")
                     .font(.subheadline.weight(.semibold))
-                Text("두 장의 사진에서 안내선 안쪽 3면만 분석해요. 사진을 저장하거나 전송하지 않으며, 인식 결과는 직접 수정할 수 있어요.")
+                Text("사진은 저장하거나 전송하지 않아요. 입력 결과는 실제 큐브와 비교해 직접 수정할 수 있어요.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -240,54 +318,48 @@ public struct CubeScanFeatureView: View {
         VStack(spacing: 14) {
             cameraSurface
             guidanceCard
+        }
+    }
 
-            if camera.availability == .idle {
-                Button {
-                    Task { await camera.prepare() }
-                } label: {
-                    Label("카메라 사용 시작", systemImage: "camera.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityHint("탭하면 카메라 권한을 확인합니다")
-            } else {
-                Button(action: captureCurrentCorner) {
-                    HStack {
-                        if camera.isCapturing {
-                            ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: "camera.fill")
-                        }
-                        Text(camera.isCapturing ? "품질 확인 중…" : "3면 촬영")
+    private var captureActionBar: some View {
+        VStack(spacing: 10) {
+            Button(action: captureCurrentCorner) {
+                HStack {
+                    if camera.isCapturing {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: "camera.fill")
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    Text(camera.isCapturing ? "품질 확인 중…" : "3면 촬영")
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(camera.availability != .ready || camera.isCapturing)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
+            .buttonStyle(.borderedProminent)
+            .disabled(camera.availability != .ready || camera.isCapturing)
 
             if captureFlow.manualFallbackIsAvailable {
                 Button {
                     isManualFallbackConfirmationPresented = true
                 } label: {
-                    Label(
-                        captureFlow.didFailCurrentCapture
-                            ? "촬영 실패 · 직접 입력으로 계속"
-                            : "촬영 없이 직접 입력",
-                        systemImage: "square.and.pencil"
-                    )
+                    HStack {
+                        Image(systemName: "square.and.pencil")
+                        Text(
+                            captureFlow.didFailCurrentCapture
+                                ? "촬영 실패 · 이 3면 직접 입력"
+                                : "이 3면 촬영 없이 입력"
+                        )
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .disabled(camera.isCapturing)
-
-                Text("현재 3면은 자동 인식값 없이 넘어가고 마지막에 직접 확인해요.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
             }
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+        .background(.regularMaterial)
     }
 
     @ViewBuilder
@@ -426,9 +498,11 @@ public struct CubeScanFeatureView: View {
             confidenceSummary
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("54칸 자동 분류 결과")
+                Text("54칸 확인")
                     .font(.headline)
-                Text("안내선에 맞춘 두 촬영에서 센터색을 기준으로 분류했습니다. 주황 테두리 칸과 실제 큐브가 다른 칸을 수정해 주세요.")
+                Text(includesManualCapture
+                    ? "센터를 제외한 각 칸을 실제 큐브와 비교해 입력하세요."
+                    : "두 촬영의 분류 결과예요. 주황 테두리 칸과 실제 큐브가 다른 칸을 수정해 주세요.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -615,22 +689,19 @@ public struct CubeScanFeatureView: View {
     }
 
     private var confidenceSummary: some View {
-        let captures = [firstCapture, secondCapture].compactMap { $0 }
-        let usedManual = captures.contains(where: \.wasManual)
-
         return HStack(alignment: .top, spacing: 12) {
-            Image(systemName: lowConfidenceCellCount > 0 || usedManual ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(lowConfidenceCellCount > 0 || usedManual ? .orange : .green)
+            Image(systemName: lowConfidenceCellCount > 0 || includesManualCapture ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(lowConfidenceCellCount > 0 || includesManualCapture ? .orange : .green)
             VStack(alignment: .leading, spacing: 4) {
                 Text(
-                    usedManual
+                    includesManualCapture
                         ? "54칸을 모두 확인해 주세요"
                         : lowConfidenceCellCount > 0
                             ? "확인 필요한 칸 \(lowConfidenceCellCount)개"
                             : "자동 분류가 끝났어요"
                 )
                     .font(.subheadline.weight(.semibold))
-                Text(usedManual
+                Text(includesManualCapture
                     ? "직접 입력한 칸을 포함해 실제 큐브와 비교해 주세요."
                     : "인식한 54칸을 실제 큐브와 비교해 주세요.")
                     .font(.caption)
@@ -640,6 +711,12 @@ public struct CubeScanFeatureView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var includesManualCapture: Bool {
+        [firstCapture, secondCapture]
+            .compactMap { $0 }
+            .contains(where: \.wasManual)
     }
 
     private var legalityValidation: some View {
@@ -699,6 +776,15 @@ public struct CubeScanFeatureView: View {
 
     private func acceptManualCapture() {
         applyCapture(.init(candidateCount: 0, confidence: 0.2, wasManual: true, observation: nil))
+    }
+
+    private func startManualReview() {
+        firstCapture = .init(candidateCount: 0, confidence: 0.2, wasManual: true, observation: nil)
+        secondCapture = .init(candidateCount: 0, confidence: 0.2, wasManual: true, observation: nil)
+        camera.stop()
+        captureFlow.startManualReview()
+        didConfirmLowConfidence = false
+        validateDraft()
     }
 
     private var stickerCounts: [FaceColor: Int] {

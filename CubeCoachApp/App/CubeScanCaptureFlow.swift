@@ -40,6 +40,11 @@ public struct CubeScanCaptureFlow: Equatable, Sendable {
         }
     }
 
+    public mutating func startManualReview() {
+        phase = .review
+        didFailCurrentCapture = false
+    }
+
     public mutating func reset() {
         self = CubeScanCaptureFlow()
     }
