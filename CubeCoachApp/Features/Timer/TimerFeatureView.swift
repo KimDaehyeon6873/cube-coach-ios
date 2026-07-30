@@ -17,29 +17,33 @@ public struct TimerFeatureView: View {
 
     public var body: some View {
         ZStack {
-            GeometryReader { geometry in
-                let usesCompactLayout = geometry.size.height < 600
-                    || dynamicTypeSize.isAccessibilitySize
+            if model.phase == .running {
+                runningTimerSurface
+            } else {
+                GeometryReader { geometry in
+                    let usesCompactLayout = geometry.size.height < 600
+                        || dynamicTypeSize.isAccessibilitySize
 
-                VStack(spacing: usesCompactLayout ? 7 : 11) {
-                    modePicker
-                    scramblePanel(isCompact: usesCompactLayout)
-                    Divider()
-                    timerPanel(isCompact: usesCompactLayout)
+                    VStack(spacing: usesCompactLayout ? 7 : 11) {
+                        modePicker
+                        scramblePanel(isCompact: usesCompactLayout)
+                        Divider()
+                        timerPanel(isCompact: usesCompactLayout)
+                    }
+                    .padding(.horizontal, usesCompactLayout ? 14 : 18)
+                    .padding(.top, usesCompactLayout ? 7 : 10)
+                    .padding(.bottom, usesCompactLayout ? 5 : 8)
+                    .frame(
+                        width: geometry.size.width,
+                        height: geometry.size.height,
+                        alignment: .top
+                    )
                 }
-                .padding(.horizontal, usesCompactLayout ? 14 : 18)
-                .padding(.top, usesCompactLayout ? 7 : 10)
-                .padding(.bottom, usesCompactLayout ? 5 : 8)
-                .frame(
-                    width: geometry.size.width,
-                    height: geometry.size.height,
-                    alignment: .top
-                )
             }
 
             fullScreenStopSurface
         }
-        .background(Color(uiColorOrFallback: "systemGroupedBackground"))
+        .background(model.phase == .running ? Color.black : Color(uiColorOrFallback: "systemGroupedBackground"))
         // The timer is a fixed, glanceable instrument rather than a reading
         // surface. Cap its descendants at the first accessibility size so the
         // required scramble, verification net, time, and primary control stay
@@ -68,6 +72,45 @@ public struct TimerFeatureView: View {
         } message: {
             Text(model.interruptionMessage ?? "")
         }
+    }
+
+    private var runningTimerSurface: some View {
+        GeometryReader { geometry in
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { _ in
+                VStack(spacing: 18) {
+                    Spacer()
+
+                    Text(primaryTime)
+                        .font(
+                            .system(
+                                size: min(geometry.size.width * 0.30, 132),
+                                weight: .bold,
+                                design: .rounded
+                            )
+                        )
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.45)
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .contentTransition(.numericText())
+                        .frame(maxWidth: .infinity)
+
+                    Text("화면 어디든 눌러 정지")
+                        .font(.headline)
+                        .foregroundStyle(.white.opacity(0.72))
+
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .frame(
+                    width: geometry.size.width,
+                    height: geometry.size.height
+                )
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("실행 중 타이머")
+        .accessibilityValue(primaryTime)
     }
 
     private var modePicker: some View {
@@ -416,8 +459,8 @@ public struct TimerFeatureView: View {
         }
         return switch model.phase {
         case .idle:
-            model.mode == .free ? "길게 누르세요. ‘손을 떼어 시작’이 보이면 놓으세요." : "큐브를 섞었다면 인스펙션을 시작하세요."
-        case .holding, .inspectionHolding: "‘손을 떼어 시작’이 보일 때까지 누르세요."
+            model.mode == .free ? "길게 누르고, 초록색이 되면 놓으세요." : "큐브를 섞었다면 인스펙션을 시작하세요."
+        case .holding, .inspectionHolding: "버튼이 초록색이 될 때까지 누르세요."
         case .armed, .inspectionArmed: "손을 떼면 시작해요."
         case .inspection: "큐브를 확인한 뒤 길게 눌러 준비하세요."
         case .running: "화면 어디든 눌러 정지"

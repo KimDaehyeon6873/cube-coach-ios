@@ -84,6 +84,7 @@ struct RecordsView: View {
                 Text("솔브 요약")
             } footer: {
                 Text("전체 평균과 기록 편차는 DNF를 제외해요. Ao5·Ao12는 WCA 방식으로 계산합니다.")
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section("시간 추세") {

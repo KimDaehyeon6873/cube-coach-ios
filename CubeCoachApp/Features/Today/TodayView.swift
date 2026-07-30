@@ -75,7 +75,7 @@ struct TodayView: View {
                                 .foregroundStyle(Color.coachAccent)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("타이머 연습").font(.headline)
-                                Text("스크램블을 확인하고 바로 기록하세요.")
+                                Text("스크램블 확인 후 바로 시작해요.")
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                             Spacer()
