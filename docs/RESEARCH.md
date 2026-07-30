@@ -574,7 +574,7 @@
 - 트레이너 스캔 경계: 촬영 54칸을 트레이너 시작 상태로 전달하거나 실행 뒤 기대 상태와 정확 비교하는 `validatedScan`은 아직 미통합. 현재 카메라는 단계 진단과 대표 연습 추천까지만 담당
 - 통계 UI: 타이머 ao5/ao12, 기록 PB·session mean·완주율·최근 일관성·current/best ao5/ao12·최근 10/25/50회 추세와 학습·약점 통계
 - 통계 후속 범위: ao100, median, 분포, 일괄 편집·내보내기
-- 출시 커리큘럼: 초급 기초와 2-Look CFOP 입문 샘플만 표시. Full CFOP·고급 분석·최단해 비교는 미출시 장기 비전이며 앱에 placeholder를 노출하지 않음
+- 출시 커리큘럼: 초급 10, 완결 2-Look 15, Full CFOP 119(F2L 41·OLL 57·PLL 21), COLL 40, Roux CMLL 42의 실행형 항목 226개. 원천·라이선스·변환·검증 기록은 `ALGORITHM_CATALOG_SOURCES.md`에 분리
 - 현재 학습 UI: 평문·자기평가형 흐름을 제거하고 명시적 `externallyPrepared/guidedAcquisition` 준비 증거, 고정 방향 2D net·move stepper·H0–H5·시각 인식 판별·실물-기대 상태 수동 비교를 구현한 시뮬레이터 검증 프로토타입
 - 앱 아이콘: 기본·다크·틴트용 1024px 이미지 자산 포함
 

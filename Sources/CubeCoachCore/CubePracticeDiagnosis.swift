@@ -48,8 +48,8 @@ public enum CubePracticeDiagnoser {
                 stage: .complete,
                 title: "큐브 완성",
                 practiceGoal: "다음 스크램블에서는 크로스 계획과 F2L 연결을 더 효율적으로 연습하세요.",
-                recommendedCurriculumTrack: .twoLookCFOP,
-                recommendedLessonID: "cfop-f2l-foundation"
+                recommendedCurriculumTrack: .fullCFOP,
+                recommendedLessonID: "full-f2l"
             )
         }
 
@@ -58,8 +58,8 @@ public enum CubePracticeDiagnoser {
                 stage: .aufRequired,
                 title: "마지막 U면 정렬(AUF)",
                 practiceGoal: "마지막 층을 윗면 회전으로 정렬해 옆면 센터 색에 맞추세요.",
-                recommendedCurriculumTrack: .twoLookCFOP,
-                recommendedLessonID: "cfop-auf"
+                recommendedCurriculumTrack: .fullCFOP,
+                recommendedLessonID: "full-pll"
             )
         }
 
@@ -99,7 +99,7 @@ public enum CubePracticeDiagnoser {
                 title: "OLL 엣지 방향 연습",
                 practiceGoal: "F2L을 유지하면서 U면 엣지를 먼저 맞춰 십자를 만드세요.",
                 recommendedCurriculumTrack: .twoLookCFOP,
-                recommendedLessonID: "two-look-oll-edges"
+                recommendedLessonID: "two-look-oll-complete"
             )
         }
 
@@ -109,7 +109,7 @@ public enum CubePracticeDiagnoser {
                 title: "OLL 코너 방향 연습",
                 practiceGoal: "U면 십자를 유지하면서 네 코너의 방향을 맞추세요.",
                 recommendedCurriculumTrack: .twoLookCFOP,
-                recommendedLessonID: "two-look-oll-corners"
+                recommendedLessonID: "two-look-oll-complete"
             )
         }
 
@@ -119,7 +119,7 @@ public enum CubePracticeDiagnoser {
                 title: "PLL 코너 순열 연습",
                 practiceGoal: "완성된 U면 방향을 유지하면서 마지막 층 코너의 위치를 먼저 맞추세요.",
                 recommendedCurriculumTrack: .twoLookCFOP,
-                recommendedLessonID: "two-look-pll-corners"
+                recommendedLessonID: "two-look-pll-complete"
             )
         }
 
@@ -128,7 +128,7 @@ public enum CubePracticeDiagnoser {
             title: "PLL 엣지 순열 연습",
             practiceGoal: "맞춰진 코너를 유지하면서 마지막 층 엣지를 순환시켜 완성하세요.",
             recommendedCurriculumTrack: .twoLookCFOP,
-            recommendedLessonID: "two-look-pll-edges"
+            recommendedLessonID: "two-look-pll-complete"
         )
     }
 }

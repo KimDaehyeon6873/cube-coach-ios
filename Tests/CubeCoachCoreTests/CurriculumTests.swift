@@ -3,7 +3,7 @@ import Testing
 
 @Test func builtInCurriculaIncludeSourcesAndParseableAlgorithms() throws {
     let curricula = CurriculumCatalog.builtIn
-    #expect(Set(curricula.map(\.track)) == Set([.beginner, .twoLookCFOP]))
+    #expect(Set(curricula.map(\.track)) == Set(CurriculumTrack.allCases))
     for curriculum in curricula {
         #expect(!curriculum.lessons.isEmpty)
         for lesson in curriculum.lessons {
@@ -18,9 +18,31 @@ import Testing
                 #expect(compiled.chunks.count == spec.chunkBoundaries.count - 1)
                 #expect(compiled.practiceMode == .guidedAcquisition)
                 #expect(compiled.acquisitionSupportLabel.contains("독립 회상 평가 아님"))
+                for alternative in sample.alternativeNotations {
+                    let execution = try compiled.startState.executing(WCAParser.parse(alternative))
+                    #expect(execution.cube == .solved)
+                    #expect(execution.orientation == .identity)
+                }
             }
         }
     }
+}
+
+@Test func releaseCatalogContainsCompleteSpeedcubingSets() {
+    let counts = Dictionary(uniqueKeysWithValues: CurriculumCatalog.builtIn.map { curriculum in
+        (curriculum.track, curriculum.lessons.flatMap(\.algorithms).count)
+    })
+    #expect(counts[.beginner] == 10)
+    #expect(counts[.twoLookCFOP] == 15)
+    #expect(counts[.fullCFOP] == 119)
+    #expect(counts[.advancedLastLayer] == 40)
+    #expect(counts[.rouxCMLL] == 42)
+    #expect(counts.values.reduce(0, +) == 226)
+
+    let samples = CurriculumCatalog.builtIn.flatMap(\.lessons).flatMap(\.algorithms)
+    #expect(samples.filter { !$0.alternativeNotations.isEmpty }.count >= 15)
+    #expect(CurriculumCatalog.openAlgorithmSource.licenseName == "MIT License")
+    #expect(CurriculumCatalog.openCMLLSource.licenseName == "MIT License")
 }
 
 @Test func theoryOnlyLessonsDoNotBecomeExecutableTrainerCases() {
@@ -42,23 +64,23 @@ import Testing
             .map { ($0.id, $0) }
     )
 
-    let antiSune = try #require(samples["oll-antisune"])
+    let antiSune = try #require(samples["2look-oll-antisune"])
     let antiSuneState = try #require(antiSune.exercise).compile().startState
     #expect(antiSune.notation == "R U2 R' U' R U' R'")
-    #expect(antiSune.recognitionHint == "윗색 코너 하나는 오른쪽 뒤.")
+    #expect(antiSune.recognitionHint.contains("Corners"))
     #expect(antiSuneState.faceletString == "FUUUUURUBULLRRRRRRUFLFFFFFFDDDDDDDDDUBBLLLLLLFRRBBBBBB")
     let upCornerIndices = [0, 2, 6, 8] // UBL, UBR, UFL, UFR in URFDLB facelet order.
     let antiSuneFacelets = Array(antiSuneState.faceletString)
     #expect(upCornerIndices.filter { antiSuneFacelets[$0] == "U" } == [2])
 
-    let ua = try #require(samples["pll-ua"])
+    let ua = try #require(samples["2look-pll-ua-perm"])
     let uaState = try #require(ua.exercise).compile().startState
-    #expect(ua.notation == "R U' R U R U R U' R' U' R2")
+    #expect(ua.notation == "M2 U M U2 M' U M2")
     #expect(uaState.faceletString == "UUUUUUUUURLRRRRRRRFRFFFFFFFDDDDDDDDDLFLLLLLLLBBBBBBBBB")
 
-    let ub = try #require(samples["pll-ub"])
+    let ub = try #require(samples["2look-pll-ub-perm"])
     let ubState = try #require(ub.exercise).compile().startState
-    #expect(ub.notation == "R2 U R U R' U' R' U' R' U R'")
+    #expect(ub.notation == "M2 U' M U2 M' U' M2")
     #expect(ubState.faceletString == "UUUUUUUUURFRRRRRRRFLFFFFFFFDDDDDDDDDLRLLLLLLLBBBBBBBBB")
 
     // With the solved bar on B, the side stickers of the three cycled U-layer
@@ -68,7 +90,7 @@ import Testing
     #expect(upperEdgeSideIndices.map { Array(ubState.faceletString)[$0] } == ["F", "L", "R", "B"])
 }
 
-@Test func exerciseCompilerRejectsBadChunksAndUnsupportedWideMoves() {
+@Test func exerciseCompilerRejectsBadChunksAndSupportsWideMoves() throws {
     let badChunks = LearningExerciseSpec(
         setupNotation: "R'",
         solutionNotation: "R",
@@ -82,19 +104,9 @@ import Testing
     }
 
     let wide = LearningExerciseSpec(
-        setupNotation: "Rw'",
-        solutionNotation: "Rw",
-        chunkBoundaries: [0, 1]
+        setupNotation: "Rw U' Rw'",
+        solutionNotation: "Rw U Rw'",
+        chunkBoundaries: [0, 3]
     )
-    let rejectsWide: Bool = {
-        do {
-            _ = try wide.compile()
-            return false
-        } catch LearningExerciseCompilationError.unsupportedMove(let move) {
-            return move.isWide
-        } catch {
-            return false
-        }
-    }()
-    #expect(rejectsWide)
+    #expect(try wide.compile().endState == .solved)
 }

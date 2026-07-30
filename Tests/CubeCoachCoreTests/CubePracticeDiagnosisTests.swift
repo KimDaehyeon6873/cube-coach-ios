@@ -41,7 +41,7 @@ import Testing
             ),
             .f2lComplete,
             .twoLookCFOP,
-            "two-look-oll-corners"
+            "two-look-oll-complete"
         ),
         (
             try legalState(
@@ -50,13 +50,13 @@ import Testing
             ),
             .ollComplete,
             .twoLookCFOP,
-            "two-look-pll-corners"
+            "two-look-pll-complete"
         ),
         (
             try legalState(),
             .complete,
-            .twoLookCFOP,
-            "cfop-f2l-foundation"
+            .fullCFOP,
+            "full-f2l"
         ),
     ]
 
@@ -98,8 +98,8 @@ import Testing
         #expect(!diagnosis.isSolved)
         #expect(diagnosis.title == "마지막 U면 정렬(AUF)")
         #expect(diagnosis.practiceGoal.contains("윗면 회전"))
-        #expect(diagnosis.recommendedLessonID != "two-look-pll-corners")
-        #expect(diagnosis.recommendedLessonID == "cfop-auf")
+        #expect(diagnosis.recommendedLessonID != "two-look-pll-complete")
+        #expect(diagnosis.recommendedLessonID == "full-pll")
     }
 }
 
@@ -127,10 +127,10 @@ import Testing
         )
     )
 
-    #expect(ollEdges.practiceDiagnosis.recommendedLessonID == "two-look-oll-edges")
-    #expect(ollCorners.practiceDiagnosis.recommendedLessonID == "two-look-oll-corners")
-    #expect(pllCorners.practiceDiagnosis.recommendedLessonID == "two-look-pll-corners")
-    #expect(pllEdges.practiceDiagnosis.recommendedLessonID == "two-look-pll-edges")
+    #expect(ollEdges.practiceDiagnosis.recommendedLessonID == "two-look-oll-complete")
+    #expect(ollCorners.practiceDiagnosis.recommendedLessonID == "two-look-oll-complete")
+    #expect(pllCorners.practiceDiagnosis.recommendedLessonID == "two-look-pll-complete")
+    #expect(pllEdges.practiceDiagnosis.recommendedLessonID == "two-look-pll-complete")
 }
 
 @Test func preservesPLLCornerAndEdgeRoutingUnderAUF() throws {
@@ -151,8 +151,8 @@ import Testing
             edgePermutation: rotatingTopLayer(pllEdges, by: offset)
         )
 
-        #expect(cornerCase.practiceDiagnosis.recommendedLessonID == "two-look-pll-corners")
-        #expect(edgeCase.practiceDiagnosis.recommendedLessonID == "two-look-pll-edges")
+        #expect(cornerCase.practiceDiagnosis.recommendedLessonID == "two-look-pll-complete")
+        #expect(edgeCase.practiceDiagnosis.recommendedLessonID == "two-look-pll-complete")
     }
 }
 
@@ -164,12 +164,12 @@ import Testing
         "beginner-cross",
         "beginner-corners",
         "beginner-second-layer",
-        "two-look-oll-edges",
-        "two-look-oll-corners",
-        "two-look-pll-corners",
-        "two-look-pll-edges",
-        "cfop-auf",
-        "cfop-f2l-foundation",
+        "two-look-oll-complete",
+        "two-look-oll-complete",
+        "two-look-pll-complete",
+        "two-look-pll-complete",
+        "full-pll",
+        "full-f2l",
     ]
 
     #expect(recommendationIDs.isSubset(of: releaseLessonIDs))

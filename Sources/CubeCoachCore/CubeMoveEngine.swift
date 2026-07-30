@@ -1,9 +1,5 @@
 import Foundation
 
-public enum CubeMoveExecutionError: Error, Equatable, Sendable {
-    case unsupportedWideTurn(CubeMove)
-}
-
 /// One of the 24 possible ways a cube can be held.
 ///
 /// The orientation maps notation-relative faces (the face currently called U,
@@ -51,7 +47,7 @@ public struct CubeOrientation: Equatable, Hashable, Sendable {
     }
 
     fileprivate func rotated(symbol: MoveSymbol, amount: TurnAmount) -> CubeOrientation {
-        precondition(!symbol.isFace)
+        precondition(symbol.isRotation)
         let turns = switch amount {
         case .clockwise: 1
         case .half: 2
@@ -85,8 +81,10 @@ public struct CubeExecutionState: Equatable, Sendable {
     }
 
     public func applying(_ move: CubeMove) throws -> CubeExecutionState {
-        guard !move.isWide else {
-            throw CubeMoveExecutionError.unsupportedWideTurn(move)
+        if move.isWide || move.symbol.isSlice {
+            return try move.primitiveExpansion.reduce(self) { state, primitive in
+                try state.applying(primitive)
+            }
         }
         if move.symbol.isFace {
             let canonicalFace = face(
@@ -118,6 +116,49 @@ public struct CubePlaybackSnapshot: Equatable, Sendable {
         self.moveIndex = moveIndex
         self.move = move
         self.executionState = executionState
+    }
+}
+
+private extension CubeMove {
+    var primitiveExpansion: [CubeMove] {
+        let clockwise: [CubeMove]
+        if isWide {
+            clockwise = switch symbol {
+            case .R: [.rotation(.x), .face(.L)]
+            case .L: [.rotation(.x, .counterclockwise), .face(.R)]
+            case .U: [.rotation(.y), .face(.D)]
+            case .D: [.rotation(.y, .counterclockwise), .face(.U)]
+            case .F: [.rotation(.z), .face(.B)]
+            case .B: [.rotation(.z, .counterclockwise), .face(.F)]
+            case .M, .E, .S, .x, .y, .z:
+                preconditionFailure("Only outer face turns may be wide")
+            }
+        } else {
+            clockwise = switch symbol {
+            case .M: [.face(.R), .rotation(.x, .counterclockwise), .face(.L, .counterclockwise)]
+            case .E: [.face(.U), .rotation(.y, .counterclockwise), .face(.D, .counterclockwise)]
+            case .S: [.face(.F, .counterclockwise), .rotation(.z), .face(.B)]
+            case .R, .L, .U, .D, .F, .B, .x, .y, .z:
+                preconditionFailure("Only slice turns require primitive expansion")
+            }
+        }
+
+        return switch amount {
+        case .clockwise:
+            clockwise
+        case .half:
+            clockwise + clockwise
+        case .counterclockwise:
+            clockwise.reversed().map(\.inverse)
+        }
+    }
+
+    static func face(_ symbol: MoveSymbol, _ amount: TurnAmount = .clockwise) -> CubeMove {
+        CubeMove(symbol: symbol, amount: amount)
+    }
+
+    static func rotation(_ symbol: MoveSymbol, _ amount: TurnAmount = .clockwise) -> CubeMove {
+        CubeMove(symbol: symbol, amount: amount)
     }
 }
 
@@ -321,9 +362,11 @@ private func normal(for symbol: MoveSymbol) -> IntVector {
     case .D: normal(for: .down)
     case .L: normal(for: .left)
     case .B: normal(for: .back)
-    case .x, .y, .z: preconditionFailure("Rotations do not identify a face")
+    case .M, .E, .S, .x, .y, .z:
+        preconditionFailure("Only outer face symbols identify a face normal")
     }
 }
+
 
 private func face(for normal: IntVector) -> CubeFace {
     switch (normal.x, normal.y, normal.z) {

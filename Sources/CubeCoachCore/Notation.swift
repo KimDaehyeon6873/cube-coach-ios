@@ -6,20 +6,35 @@ public enum CubeAxis: String, Codable, Sendable, Equatable, CaseIterable {
 
 public enum MoveSymbol: String, Codable, Sendable, Equatable, CaseIterable {
     case R, L, U, D, F, B
+    case M, E, S
     case x, y, z
 
     public var axis: CubeAxis {
         switch self {
-        case .R, .L, .x: .x
-        case .U, .D, .y: .y
-        case .F, .B, .z: .z
+        case .R, .L, .M, .x: .x
+        case .U, .D, .E, .y: .y
+        case .F, .B, .S, .z: .z
         }
     }
 
     public var isFace: Bool {
         switch self {
         case .R, .L, .U, .D, .F, .B: true
-        case .x, .y, .z: false
+        case .M, .E, .S, .x, .y, .z: false
+        }
+    }
+
+    public var isSlice: Bool {
+        switch self {
+        case .M, .E, .S: true
+        case .R, .L, .U, .D, .F, .B, .x, .y, .z: false
+        }
+    }
+
+    public var isRotation: Bool {
+        switch self {
+        case .x, .y, .z: true
+        case .R, .L, .U, .D, .F, .B, .M, .E, .S: false
         }
     }
 }

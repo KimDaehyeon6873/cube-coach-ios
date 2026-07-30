@@ -14,8 +14,8 @@
 | 상태 검증·연습 연결 | 사용자가 확인·수정한 `URFDLB` 54칸은 색 수·센터·cubie 유일성·코너/엣지 방향 합·순열 parity를 검사한다. 합법 상태만 단계 진단과 권장 회상 연습으로 연결한다. | 정확한 OLL/PLL 개별 케이스 matcher 또는 전체 해결기라고 표현하지 않는다. |
 | 로컬 데이터 | 학습 진행·솔브 기록·일일 목표는 `UserDefaults`의 버전된 JSON 스냅샷으로, 화면 모드 선택은 문자열 값으로 기기 안에 저장된다. 설정에서 이 데이터와 복구용 사본을 이중 확인 후 모두 삭제할 수 있으며 화면 모드는 시스템 기본값으로 돌아간다. | 계정, 동기화, 분석 SDK, 서버 백업은 현재 없다. 추가하면 개인정보·삭제·암호화·심사 메모를 다시 검토한다. |
 | 네트워크·계정 | `URLSession`, 로그인, 광고, 분석, CloudKit, StoreKit 사용은 현재 소스와 `Package.swift`에서 찾지 못했다. Release archive에는 외부 framework/Swift package가 없고 AdSupport도 연결되지 않았다. | 정적·바이너리 검사 결과다. 실기기 동적 네트워크 감사와 향후 SDK 추가 시 다시 확인한다. |
-| 출시 학습 UI | 초급 레이어 해법의 기초 샘플과 2-Look CFOP 입문 샘플만 노출한다. Full CFOP·고급 분석·최단해 비교 placeholder는 제거했다. | 이 두 트랙을 완결된 전체 공식 카탈로그라고 홍보하지 않는다. 장기 비전은 미출시 기능으로 문서에서만 구분한다. |
-| 제3자 자료 | 서명된 TNoodle-WCA 1.2.3 JAR로 오프라인 생성한 32,768개 연습 스크램블과 provenance manifest를 번들한다. JAR/JVM/AGPL 실행 코드는 앱에 포함하지 않는다. | 알고리즘 표, 도식, 스크린샷, 상표, 생성물과 코드의 라이선스 고지를 출시 전에 각각 증빙한다. CubeTime의 UI/메타데이터를 복제하지 않는다. |
+| 출시 학습 UI | 실행형 항목 226개: 초급 10, 완결 2-Look 15, Full CFOP 119, COLL 40, Roux CMLL 42. 계열별 검색과 상태 검증된 후보의 HTM/ETM 비교를 제공한다. | `최단`은 동일 대표 시작 상태를 푸는 검증 후보 중 최단으로만 표현하고 전역 최적해로 홍보하지 않는다. |
+| 제3자 자료 | TNoodle-WCA 1.2.3 생성 스크램블과 provenance manifest, MIT 라이선스의 cubingapp·CubeDex에서 변환한 공식 데이터, 독립 작성 초급 콘텐츠를 번들한다. 원 저작권과 MIT 전문은 `THIRD_PARTY_NOTICES.md`에 보존한다. | Rubik 공식 가이드 등 재사용 허가가 불명확한 자료는 구조 참고와 링크에만 쓰고 문구·도식·이미지를 복제하지 않는다. CubeTime의 UI/메타데이터도 복제하지 않는다. |
 
 ## 2. 판정 용어
 
@@ -32,10 +32,10 @@
 | 개인정보 처리방침 | **필수 — 앱 내 링크·공개 HTTPS 확인 완료, App Store Connect 입력 전** | 지침 5.1.1은 App Store Connect와 앱 내부의 쉽게 접근 가능한 위치에 개인정보 처리방침 링크를 요구한다. 앱의 `오늘 → 설정`에 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html` 링크가 있고 같은 내용을 담은 `docs/privacy.html`이 있다. 공개 GitHub Pages의 지원 페이지와 개인정보 처리방침이 2026-07-31에 각각 HTTPS `200`을 반환함을 확인했다. | App Store Connect의 Privacy Policy URL에 같은 주소를 입력한다. 이후 페이지·앱·실제 바이너리의 처리·삭제 설명을 항상 같은 변경에서 갱신한다. |
 | App Privacy(영양성분표) | **필수 — archive 정적 감사 완료, 제출 답변·실기기 동적 감사 필요** | App Store 배포 앱은 App Store Connect에서 데이터 처리 관행을 설명해야 하며, 통합한 제3자 코드의 관행도 포함한다. Apple 정의에서 기기 밖으로 지속 접근 가능하게 전송하지 않는 온디바이스 처리·저장은 “수집”이 아니다. 현재 소스·의존성·Release archive에는 외부 SDK나 업로드 경로가 없어 `No, we do not collect data from this app`가 가능한 후보다. | 실기기 동적 네트워크 감사를 통과한 뒤 App Store Connect 답변을 확정한다. 원격 크래시/분석, 백업, 계정, 클라우드 동기화, 광고 또는 사진/기록 전송을 추가하면 해당 데이터 유형·목적·연결성·추적 여부를 다시 선언한다. |
 | Privacy Manifest·Required Reason API | **조건부 — archive 번들 포함·plist 검증 완료, Privacy Report 확인 필요** | Apple은 앱/SDK의 수집 데이터와 Required Reason API 사유를 `PrivacyInfo.xcprivacy`에 기록하도록 문서화한다. Release archive의 앱 번들 루트에서 유효한 plist를 확인했으며, 추적 false, 수집 데이터 없음, `UserDefaults` (`CA92.1`)와 system boot time (`35F9.1`) 사유를 선언한다. | 서명된 배포 archive의 Xcode Privacy Report에서 예상한 두 Required Reason API와 실제 API 사용이 일치하는지 확인한다. 새 API·SDK를 추가하면 manifest 및 App Privacy를 같은 변경에서 갱신한다. |
-| 제3자 SDK·코드 | **필수 — archive 포함물 감사 완료, 권리 판단 필요** | Apple은 앱에 포함된 모든 제3자 코드의 개인정보 관행에 개발자가 책임진다고 명시한다. Release archive에는 외부 Swift Package SDK가 없고 TNoodle JAR/JVM/AGPL 실행 코드나 `.jar`/`.class`도 없다. 사전 생성한 텍스트 카탈로그와 provenance manifest만 번들한다. | TNoodle 출력·고지와 학습 콘텐츠의 배포 권리를 출시 책임자가 최종 확인한다. 향후 SDK마다 버전, 라이선스, privacy manifest, Apple의 “required SDK” 목록 해당 여부와 바이너리 서명을 기록한다. |
-| 지식재산권·정직한 메타데이터 | **필수 — 미완료** | 심사 지침 2.3.7은 고유하고 정확한 이름·키워드를, 2.3.9는 아이콘·스크린샷·미리보기 사용권을, 5.2.1은 허가 없는 제3자 저작물·상표·copycat·허위 표현 금지를 요구한다. | “CubeTime”, “Rubik’s”, WCA, 커뮤니티, 알고리즘 표/도식/영상/스크린샷은 사용권 또는 허용 범위를 각각 확인한다. CubeTime은 벤치마크일 뿐이며 이름·화면·스토어 스크린샷을 메타데이터에 사용하지 않는다. “공식 스크램블”, “완전 인식”, “최단해”는 실제 검증·라이선스·범위가 충족된 뒤에만 표기한다. |
-| 앱 완성도·심사 메모 | **필수 — UI·archive 정적 검증 완료, 실기기 최종 검증 필요** | 지침 2.1은 placeholder·임시 콘텐츠를 제거한 최종 버전을, 2.2는 데모·베타·trial 대신 TestFlight 사용을, 2.3은 실제 핵심 경험과 일치하는 메타데이터를 요구한다. 출시 학습 UI는 초급 기초와 2-Look CFOP 입문만 표시하며 Full CFOP·최단 placeholder를 제거했다. 연습 탭의 타이머는 별도 화면 이동이나 스크롤 없이 스크램블·검산용 전개도·타이머 조작을 한 화면에 표시한다. iPhone SE 3세대 Simulator에서 가장 큰 시스템 접근성 글자 크기를 요청한 상태의 한 화면 레이아웃을 확인했고 Release archive 포함물도 검사했다. | 아래 §6 심사 메모를 실제 기능과 일치시켜 입력한다. 카메라를 `베타`나 범용 detector로 홍보하지 않고 지원 조건·수동 확인·온디바이스 처리·실기기 검증 범위를 분명히 한다. 실제 iPhone과 TestFlight에서 빈 화면·미구현 동작·크래시가 없는지 최종 확인한다. |
-| 제품 페이지·지원·연령 등급 | **필수 — 미완료** | 이름/부제목/설명/스크린샷/미리보기/키워드를 준비해야 하며, 지원 연락처와 개인정보 처리방침은 모든 앱에 필요하다. 연령 등급 질문지는 필수이고, 미등급 앱은 App Store에 게시할 수 없다. | 한국어 우선 스크린샷은 실제 앱의 초급 기초·2-Look 입문, 타이머·통계, 가이드 정렬 카메라·수동 흐름만 보여 준다. Full CFOP·최단해·범용 사진 인식을 암시하지 않는다. 지원 URL/이메일을 공개하고 연령 등급 질문지를 실제 콘텐츠대로 작성한다. |
+| 제3자 SDK·코드 | **필수 — archive 포함물·학습 데이터 고지 감사 완료** | Apple은 앱에 포함된 모든 제3자 코드의 개인정보 관행에 개발자가 책임진다고 명시한다. Release archive에는 외부 Swift Package SDK가 없고 TNoodle JAR/JVM/AGPL 실행 코드나 `.jar`/`.class`도 없다. 사전 생성한 텍스트 카탈로그와 provenance manifest만 번들한다. | TNoodle 출력에 대한 최종 배포 판단은 출시 책임자가 유지한다. 학습 공식 데이터는 고정 MIT 원본과 번들 내 허가문으로 범위를 닫았다. 향후 SDK마다 버전, 라이선스, privacy manifest, Apple의 “required SDK” 목록 해당 여부와 바이너리 서명을 기록한다. |
+| 지식재산권·정직한 메타데이터 | **필수 — 학습 데이터 검수 완료, 최종 스토어 메타데이터 미완료** | 심사 지침 2.3.7은 고유하고 정확한 이름·키워드를, 2.3.9는 아이콘·스크린샷·미리보기 사용권을, 5.2.1은 허가 없는 제3자 저작물·상표·copycat·허위 표현 금지를 요구한다. | cubingapp·CubeDex의 고정 MIT 원본, 저작권·허가문, 변환 스크립트와 상태 검증을 보존한다. CubeTime·Rubik 공식 자료·WCA 화면은 벤치마크/참조일 뿐 복제하지 않는다. 스토어의 `최단`은 검수 후보 중 비교라고 한정하고, “공식 스크램블”, “완전 인식”, 전역 최적해를 주장하지 않는다. |
+| 앱 완성도·심사 메모 | **필수 — UI·archive 정적 검증 완료, 실기기 최종 검증 필요** | 지침 2.1은 placeholder·임시 콘텐츠를 제거한 최종 버전을, 2.2는 데모·베타·trial 대신 TestFlight 사용을, 2.3은 실제 핵심 경험과 일치하는 메타데이터를 요구한다. 출시 학습 UI는 권리·표기·상태 적용을 검수한 226개 실행형 항목과 범위가 명시된 후보 길이 비교를 표시한다. 연습 탭의 타이머는 별도 화면 이동이나 스크롤 없이 스크램블·검산용 전개도·타이머 조작을 한 화면에 표시한다. iPhone SE 3세대 Simulator에서 가장 큰 시스템 접근성 글자 크기를 요청한 상태의 한 화면 레이아웃을 확인했고 Release archive 포함물도 검사했다. | 아래 §6 심사 메모를 실제 기능과 일치시켜 입력한다. 카메라를 `베타`나 범용 detector로 홍보하지 않고 지원 조건·수동 확인·온디바이스 처리·실기기 검증 범위를 분명히 한다. 실제 iPhone과 TestFlight에서 빈 화면·미구현 동작·크래시가 없는지 최종 확인한다. |
+| 제품 페이지·지원·연령 등급 | **필수 — 미완료** | 이름/부제목/설명/스크린샷/미리보기/키워드를 준비해야 하며, 지원 연락처와 개인정보 처리방침은 모든 앱에 필요하다. 연령 등급 질문지는 필수이고, 미등급 앱은 App Store에 게시할 수 없다. | 한국어 우선 스크린샷은 실제 앱의 226개 학습 카탈로그·후보 길이 비교, 타이머·통계, 가이드 정렬 카메라·수동 흐름만 보여 준다. 전역 최단해·범용 사진 인식을 암시하지 않는다. 지원 URL/이메일을 공개하고 연령 등급 질문지를 실제 콘텐츠대로 작성한다. |
 | 접근성·Accessibility Nutrition Labels | **조건부 — 타이머 제한적 레이아웃 확인, 전체 Larger Text·보조기술 검증 전** | Apple은 App Store Connect에서 VoiceOver·Voice Control·Larger Text 등의 지원을 제품 페이지에 자발적으로 표시하도록 제공하며, 표시 전 평가 기준 검토를 요구한다. 시스템 content size를 `accessibility-extra-extra-extra-large`로 요청해도 타이머 계측기 하위 뷰는 `.dynamicTypeSize(.xSmall ... .accessibility1)`로 Accessibility 1까지만 확대한다. 이 제한 아래 iPhone SE 3세대 Simulator에서 스크램블 두 줄 전체, TNoodle 비공식 문구, 전개도, 타이머와 주요 버튼이 스크롤 없이 한 화면에 보이는 것을 확인했다. 이는 타이머 화면의 의도적인 상한과 시각적 레이아웃 점검이며, 전체 앱의 Larger Text 완전 지원이나 VoiceOver·Voice Control·실기기 접근성 검증 증거가 아니다. | 타이머의 글자 크기 상한이 정보 접근성을 저해하지 않는지 실제 기기에서 평가하고, VoiceOver, Dynamic Type, 충분한 대비, 스위치/음성 제어로 타이머 시작·정지·기록 수정·카메라 대체 흐름을 점검한다. 통과한 기능만 App Accessibility에 선언하고, 남은 제약은 접근성 URL에 공개한다. |
 | 계정 삭제 | **해당 없음 — 현 구현** | Apple은 **계정 생성을 지원하는 앱**에 앱 안에서 계정 삭제 시작 기능을 요구한다. 현 코드에는 계정 생성·로그인·서버 사용자 데이터가 없다. | 계정, Sign in with Apple, 소셜 로그인, 동기화 프로필을 도입하는 같은 릴리스에서 앱 내 계정 삭제(및 보존 법적 근거/기한 안내)를 구현·테스트하고 Privacy Policy/App Privacy를 갱신한다. |
 | 로컬 데이터 삭제·Privacy Choices | **조건부 — 앱 내 삭제 구현** | 현 로컬 전용 설계에 Apple의 “계정 삭제” 의무는 적용되지 않고 Privacy Choices URL은 선택 사항이다. 앱은 모든 로컬 학습·솔브 데이터와 복구용 사본의 범위를 설명하고 이중 확인 후 삭제한다. 개인정보 처리방침에도 같은 경로와 되돌릴 수 없음을 명시한다. | 삭제 범위와 재실행 후 초기 상태를 릴리스 빌드에서 확인한다. 계정·원격 데이터가 생기면 앱 내 계정 삭제와 원격 삭제/보존 정책, Privacy Choices URL을 함께 재검토한다. |
@@ -79,9 +79,9 @@
 
 ### 출시 커리큘럼
 
-- 출시 UI에는 초급 레이어 해법의 기초 샘플과 2-Look CFOP 입문 샘플만 표시한다.
-- Full CFOP·고급 분석·최단해 비교는 미출시 장기 비전이다. App Store 설명·스크린샷·미리보기에서 현재 기능처럼 제시하지 않는다.
-- 출시 범위를 `완결된 첫 독립 솔빙`, `전체 2-Look 공식`, `Full CFOP`이라고 부르기 전에 콘텐츠 완결성·정확성·권리 검수를 별도로 증빙한다.
+- 출시 UI에는 초급 10, 완결 2-Look 15, Full CFOP 119, COLL 40, Roux CMLL 42의 실행형 항목 226개를 표시한다.
+- cubingapp·CubeDex의 MIT 고지와 고정 원본 커밋, 변환 스크립트, 전체 파싱·상태 적용 테스트를 함께 보존한다.
+- `후보 중 짧은 공식`은 같은 대표 시작 상태를 해결하는 것으로 검증된 수록 후보의 HTM/ETM 비교다. 전역 최단해·God’s Algorithm·사용자 실물 상태의 최적해라고 표현하지 않는다.
 
 ## 6. App Review Information 초안 (제출 직전 사실대로 재검증)
 
@@ -92,7 +92,7 @@
 3. 카메라를 거부해도 `수동 확인으로 계속`을 탭해 학습·타이머를 계속 사용할 수 있다.
 4. 카메라 프레임과 촬영 JPEG는 표준 6색 큐브의 가이드 정렬 두 포즈에서 54칸 후보를 만들기 위해 기기 안에서 일시 처리하며 저장·업로드하지 않는다. **이 문장은 릴리스 네트워크/파일 감사가 통과한 경우에만 제출한다.**
 5. 사용자는 셀별 신뢰도를 보고 54칸을 확인·수정한다. 앱은 색 수·cubie 방향·순열 parity를 포함한 상태 유효성을 검사하고 합법 상태에서 다음 회상 연습 단계를 추천한다.
-6. 카메라는 임의 사진 detector가 아니며 전체 해결 동작을 생성하지 않는다. 출시 학습 범위는 초급 기초와 2-Look CFOP 입문 샘플이다.
+6. 카메라는 임의 사진 detector가 아니며 전체 해결 동작을 생성하지 않는다. 출시 학습 범위는 초급·완결 2-Look·Full CFOP·COLL·Roux CMLL의 실행형 항목 226개다.
 
 **심사 연락처**
 
@@ -138,6 +138,10 @@
 - 최종 archive 실행 파일: arm64, 외부 SDK/framework·AdSupport·`.jar`·`.class` 없음.
 - 공개 저장소 `https://github.com/KimDaehyeon6873/cube-coach-ios`, 지원 페이지 `https://kimdaehyeon6873.github.io/cube-coach-ios/`, 개인정보 처리방침 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html`이 HTTPS `200`을 반환함을 확인했다.
 - `xcrun devicectl list devices`: `No devices found`. 물리 iPhone 카메라 QA는 실행하지 못했다.
+
+- 전체 공식 카탈로그 변경의 Release + strict concurrency complete `swift test`는 Swift Testing 117개와 XCTest 4개가 모두 통과했다(`/tmp/cubecoach-full-catalog-test.log`). 트랙별 개수, 226개 전체 파싱·상태 적용, 대체 후보의 동일 대표 상태 해결, wide/slice move 역원·4회전 항등을 검사한다.
+- warnings-as-errors·strict concurrency complete iPhone 17 Pro Simulator 빌드가 성공했다(`/tmp/cubecoach-full-catalog-build.log`). iPhone 13 mini 다크와 iPhone 17 Pro 라이트에서 학습 첫 화면을, 13 mini에서 계열별 공식 목록과 상세 전개도를 확인했다(`/tmp/cubecoach-full-catalog-ui/13mini-learn4.png`, `/tmp/cubecoach-full-catalog-ui/17pro-learn4.png`, `/tmp/cubecoach-full-catalog-ui/13mini-stage.png`, `/tmp/cubecoach-full-catalog-ui/13mini-case2.png`). 이는 시뮬레이터 레이아웃 증거이며 실기기 카메라·터치 지연 검증을 대신하지 않는다.
+- 최종 generic iOS Release archive(`/tmp/CubeCoachFullCatalogFinalArchive.wRiJfs/CubeCoach.xcarchive`, 로그 `/tmp/cubecoach-full-catalog-archive.log`)가 warnings-as-errors·strict concurrency complete와 Store validation을 통과했다. 아카이브 안 `CubeCoach_CubeCoachCore.bundle/THIRD_PARTY_NOTICES.md`가 루트 원문과 바이트 단위로 같고 cubingapp·CubeDex 저작권과 MIT 허가문을 포함한다. `Info.plist`와 `PrivacyInfo.xcprivacy`도 `plutil` 검증을 통과했으며 `.jar`·`.class`는 없다. 이 아카이브는 `CODE_SIGNING_ALLOWED=NO`인 로컬 구조 검증용이며 업로드 가능한 서명본이 아니다.
 
 ## 8. Apple 공식 근거
 

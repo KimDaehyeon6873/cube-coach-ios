@@ -51,10 +51,6 @@ public struct LearningExerciseSpec: Codable, Sendable, Equatable {
             throw LearningExerciseCompilationError.invalidSolutionNotation(error)
         }
 
-        if let unsupported = (setup.moves + solution.moves).first(where: \.isWide) {
-            throw LearningExerciseCompilationError.unsupportedMove(unsupported)
-        }
-
         guard chunkBoundaries.count >= 2,
               chunkBoundaries.first == 0,
               chunkBoundaries.last == solution.moves.count,
@@ -117,7 +113,6 @@ public enum LearningExerciseCompilationStage: String, Equatable, Sendable {
 public enum LearningExerciseCompilationError: Error, Equatable, Sendable {
     case invalidSetupNotation(WCAParseError)
     case invalidSolutionNotation(WCAParseError)
-    case unsupportedMove(CubeMove)
     case invalidChunkBoundaries(boundaries: [Int], moveCount: Int)
     case nonIdentityOrientation(stage: LearningExerciseCompilationStage)
     case expectedOutcomeMismatch(expected: LearningExerciseExpectedOutcome)

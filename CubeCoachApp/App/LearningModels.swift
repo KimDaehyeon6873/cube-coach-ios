@@ -28,6 +28,8 @@ struct StudyCaseUI: Identifiable, Equatable {
     let hint: String
     let level: String
     let family: String
+    let alternativeAlgorithms: [String]
+    let sources: [LearningSource]
     let recognitionChoices: [String]
     let exercise: CompiledLearningExercise?
 
@@ -62,6 +64,8 @@ struct StudyCaseUI: Identifiable, Equatable {
         hint: String,
         level: String,
         family: String,
+        alternativeAlgorithms: [String] = [],
+        sources: [LearningSource] = [],
         recognitionChoices: [String] = [],
         exercise: CompiledLearningExercise? = nil
     ) {
@@ -73,6 +77,8 @@ struct StudyCaseUI: Identifiable, Equatable {
         self.hint = hint
         self.level = level
         self.family = family
+        self.alternativeAlgorithms = alternativeAlgorithms
+        self.sources = sources
         self.recognitionChoices = recognitionChoices
         self.exercise = exercise
     }
@@ -123,6 +129,14 @@ struct StudyCaseUI: Identifiable, Equatable {
                             caseID: sample.id
                         )
                     }
+                    do {
+                        _ = try sample.alternativeNotations.map(WCAParser.parse)
+                    } catch {
+                        throw CatalogValidationError.invalidExercise(
+                            caseID: sample.id,
+                            reason: "Invalid alternative notation: \(error)"
+                        )
+                    }
 
                     executable.append(.init(
                         id: sample.id,
@@ -133,15 +147,24 @@ struct StudyCaseUI: Identifiable, Equatable {
                         hint: lesson.objective,
                         level: curriculum.title,
                         family: lesson.title,
+                        alternativeAlgorithms: sample.alternativeNotations,
+                        sources: lesson.sources,
                         exercise: compiled
                     ))
                 }
             }
         }
 
-        let allNames = executable.map(\.title)
         return executable.map { item in
-            let distractors = allNames.filter { $0 != item.title }.prefix(2)
+            let comparable = executable
+                .filter { $0.id != item.id && $0.family == item.family }
+                + executable.filter {
+                    $0.id != item.id && $0.family != item.family && $0.level == item.level
+                }
+            var seenTitles = Set([item.title])
+            let distractors = comparable.compactMap { candidate -> String? in
+                seenTitles.insert(candidate.title).inserted ? candidate.title : nil
+            }.prefix(2)
             return .init(
                 id: item.id,
                 title: item.title,
@@ -151,6 +174,8 @@ struct StudyCaseUI: Identifiable, Equatable {
                 hint: item.hint,
                 level: item.level,
                 family: item.family,
+                alternativeAlgorithms: item.alternativeAlgorithms,
+                sources: item.sources,
                 recognitionChoices: ([item.title] + distractors).sorted(),
                 exercise: item.exercise
             )
@@ -181,7 +206,10 @@ struct RoadmapStageUI: Identifiable {
         }
         let subtitle: String = switch curriculum.track {
         case .beginner: "조각의 이동 원리와 기본 트리거"
-        case .twoLookCFOP: "F2L과 2-Look OLL · PLL 대표 패턴 입문"
+        case .twoLookCFOP: "OLL 9개 · PLL 6개로 단계 전환"
+        case .fullCFOP: "F2L 41 · OLL 57 · PLL 21"
+        case .advancedLastLayer: "COLL로 코너 방향과 순열을 함께 해결"
+        case .rouxCMLL: "Roux 두 블록을 유지하는 CMLL 42"
         }
         return RoadmapStageUI(id: curriculum.track.rawValue, title: curriculum.title, subtitle: subtitle, caseIDs: ids)
     }

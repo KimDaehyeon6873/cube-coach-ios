@@ -61,9 +61,17 @@ func cubeRotationsUseASeparate24OrientationModel(symbol: String) throws {
     #expect(Set(execution.projectedFacelets) == Set(CubeFace.allCases))
 }
 
-@Test func wideTurnsFailClosedAtExecution() throws {
-    let wide = try #require(WCAParser.parse("Rw").moves.first)
-    #expect(throws: CubeMoveExecutionError.unsupportedWideTurn(wide)) {
-        try CubeState.solved.applying(wide)
-    }
+@Test(arguments: ["Rw", "Uw", "Fw", "Lw", "Dw", "Bw", "M", "E", "S"])
+func wideAndSliceTurnsSatisfyInverseAndFourTurnIdentities(notation: String) throws {
+    let algorithm = try WCAParser.parse(notation)
+    let inverseExecution = try CubeState.solved.executing(
+        CubeAlgorithm(moves: algorithm.moves + algorithm.inverse.moves)
+    )
+    #expect(inverseExecution.cube == .solved)
+    #expect(inverseExecution.orientation == .identity)
+    let fourTurnExecution = try CubeState.solved.executing(
+        WCAParser.parse("\(notation) \(notation) \(notation) \(notation)")
+    )
+    #expect(fourTurnExecution.cube == .solved)
+    #expect(fourTurnExecution.orientation == .identity)
 }

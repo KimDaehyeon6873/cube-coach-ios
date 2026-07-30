@@ -76,8 +76,39 @@ struct NotationPrimerView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Divider()
+
+                Text("고급 공식 기호")
+                    .font(.subheadline.weight(.semibold))
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 112), spacing: 8)],
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+                    advancedNotation("Rw", "오른쪽 두 겹")
+                    advancedNotation("M", "가운데 세로층")
+                    advancedNotation("E", "가운데 가로층")
+                    advancedNotation("S", "가운데 앞뒤층")
+                    advancedNotation("x · y · z", "큐브 전체 회전")
+                }
             }
         }
+    }
+
+    private func advancedNotation(_ notation: String, _ description: String) -> some View {
+        HStack(spacing: 8) {
+            Text(notation)
+                .font(.subheadline.monospaced().bold())
+                .foregroundStyle(Color.coachAccent)
+                .frame(minWidth: 36, alignment: .leading)
+            Text(description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func notationCard(

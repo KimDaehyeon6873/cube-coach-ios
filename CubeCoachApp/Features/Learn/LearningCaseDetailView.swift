@@ -24,6 +24,7 @@ struct LearningCaseDetailView: View {
                     startStateSection(exercise)
                     recognitionSection
                     followAlongSection(exercise)
+                    analysisSection
                     verificationSection
                 } else {
                     unavailableContent
@@ -157,6 +158,123 @@ struct LearningCaseDetailView: View {
         }
     }
 
+    private var analysisSection: some View {
+        let candidates = [learningCase.algorithm] + learningCase.alternativeAlgorithms
+        let ranked = candidates
+            .compactMap { notation -> (notation: String, metrics: AlgorithmMetrics)? in
+                guard let algorithm = try? WCAParser.parse(notation) else { return nil }
+                return (notation, AlgorithmMetrics(algorithm: algorithm))
+            }
+            .sorted {
+                if $0.metrics.htm == $1.metrics.htm {
+                    return $0.metrics.etm < $1.metrics.etm
+                }
+                return $0.metrics.htm < $1.metrics.htm
+            }
+
+        return CoachCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("공식 분석", systemImage: "chart.bar.doc.horizontal")
+                    .font(.headline)
+
+                if let recommended = ranked.first(where: { $0.notation == learningCase.algorithm }),
+                   let shortest = ranked.first {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 10) {
+                            metricBadge(title: "기본", value: "\(recommended.metrics.htm) HTM")
+                            metricBadge(title: "후보 최단", value: "\(shortest.metrics.htm) HTM")
+                            metricBadge(title: "검수 후보", value: "\(ranked.count)개")
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            metricBadge(title: "기본", value: "\(recommended.metrics.htm) HTM")
+                            metricBadge(title: "후보 최단", value: "\(shortest.metrics.htm) HTM")
+                            metricBadge(title: "검수 후보", value: "\(ranked.count)개")
+                        }
+                    }
+                }
+
+                if ranked.count > 1 {
+                    DisclosureGroup("다른 공식 비교") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(ranked.enumerated()), id: \.offset) { index, candidate in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text(index == 0 ? "후보 최단" : "대안 \(index)")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(index == 0 ? Color.coachAccent : Color.secondary)
+                                        Spacer()
+                                        Text("\(candidate.metrics.htm) HTM · \(candidate.metrics.etm) ETM")
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    ScrollView(.horizontal) {
+                                        Text(candidate.notation)
+                                            .font(.subheadline.monospaced().weight(.semibold))
+                                            .lineLimit(1)
+                                            .fixedSize(horizontal: true, vertical: false)
+                                    }
+                                    .scrollIndicators(.hidden)
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                }
+
+                Text("후보 최단은 검수된 공식 안의 비교예요. 전체 큐브의 최적해를 뜻하지 않아요.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !learningCase.sources.isEmpty {
+                    DisclosureGroup("출처와 라이선스") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(learningCase.sources.enumerated()), id: \.offset) { _, source in
+                                VStack(alignment: .leading, spacing: 3) {
+                                    if let url = URL(string: source.url) {
+                                        Link(source.title, destination: url)
+                                            .font(.subheadline.weight(.semibold))
+                                    } else {
+                                        Text(source.title)
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    Text(source.publisher)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    if let license = source.licenseName {
+                                        Text(license)
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(Color.coachAccent)
+                                    }
+                                    if let note = source.note {
+                                        Text(note)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                }
+            }
+        }
+    }
+
+    private func metricBadge(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.monospacedDigit().bold())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(9)
+        .background(.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+    }
+
     private var unavailableContent: some View {
         ContentUnavailableView(
             "시범을 불러오지 못했어요",
@@ -175,6 +293,16 @@ struct LearningCaseDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct AlgorithmMetrics {
+    let htm: Int
+    let etm: Int
+
+    init(algorithm: CubeAlgorithm) {
+        htm = algorithm.moves.filter { !$0.symbol.isRotation }.count
+        etm = algorithm.moves.count
     }
 }
 
