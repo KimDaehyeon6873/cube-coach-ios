@@ -29,7 +29,7 @@
 | --- | --- | --- | --- |
 | 최신 SDK·실기기 완성도 | **필수 — 환경·시뮬레이터·무서명 Release archive 완료, 실기기 미완료** | Apple은 2026-04부터 iOS/iPadOS 앱을 iOS/iPadOS 26 SDK 이상으로 빌드하도록 공지했다. Xcode 26.6(17F113), `DVTDownloads` Build 24431과 iOS 26.5 런타임을 정합화했고 `checkFirstLaunchStatus`, iPhone 17 Pro Simulator Debug 빌드·설치·실행을 확인했다. iOS 26.5 SDK의 generic iOS Release clean archive도 strict concurrency·warnings-as-errors와 `builtin-validationUtility -validate-for-store`를 통과했다. `devicectl`에는 연결된 기기가 없다. | Apple Developer Team/프로비저닝으로 서명한 배포 archive를 만들고, 실제 iPhone에서 카메라 권한/촬영/백그라운드 복귀/거부 후 수동 경로를 실행 증빙한다. 시뮬레이터나 무서명 archive 통과로 대체하지 않는다. |
 | 카메라 권한 목적 문자열 | **필수 — Release archive 충족, 실기기 검증 필요** | `NSCameraUsageDescription`은 카메라 API 사용 시 필수이며, 사용 이유를 사용자에게 알려야 한다. archive의 `Info.plist`에 “촬영 가이드에 맞춘 큐브 6면의 색상을 기기 안에서 분석하고 연습 단계를 추천하기 위해 카메라를 사용합니다.”가 포함됨을 확인했다. | 권한 요청 직전 안내와 시스템 대화가 같은 목적을 정확히 말하는지, 거부 상태에서 핵심 학습·타이머가 계속 가능한지 실기기에서 검증한다. |
-| 개인정보 처리방침 | **필수 — 문서·앱 내 링크 구현, 공개 확인 전** | 지침 5.1.1은 App Store Connect와 앱 내부의 쉽게 접근 가능한 위치에 개인정보 처리방침 링크를 요구한다. 앱의 `오늘 → 개인정보 및 데이터`에 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html` 링크가 있고 같은 내용을 담은 `docs/privacy.html`이 있다. | 공개 저장소와 GitHub Pages 배포 후 URL의 HTTPS 200 응답을 확인하고 App Store Connect의 Privacy Policy URL에 같은 주소를 입력한다. 페이지·앱·실제 바이너리의 처리·삭제 설명을 일치시킨다. |
+| 개인정보 처리방침 | **필수 — 앱 내 링크·공개 HTTPS 확인 완료, App Store Connect 입력 전** | 지침 5.1.1은 App Store Connect와 앱 내부의 쉽게 접근 가능한 위치에 개인정보 처리방침 링크를 요구한다. 앱의 `오늘 → 개인정보 및 데이터`에 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html` 링크가 있고 같은 내용을 담은 `docs/privacy.html`이 있다. 공개 GitHub Pages의 지원 페이지와 개인정보 처리방침이 2026-07-31에 각각 HTTPS `200`을 반환함을 확인했다. | App Store Connect의 Privacy Policy URL에 같은 주소를 입력한다. 이후 페이지·앱·실제 바이너리의 처리·삭제 설명을 항상 같은 변경에서 갱신한다. |
 | App Privacy(영양성분표) | **필수 — archive 정적 감사 완료, 제출 답변·실기기 동적 감사 필요** | App Store 배포 앱은 App Store Connect에서 데이터 처리 관행을 설명해야 하며, 통합한 제3자 코드의 관행도 포함한다. Apple 정의에서 기기 밖으로 지속 접근 가능하게 전송하지 않는 온디바이스 처리·저장은 “수집”이 아니다. 현재 소스·의존성·Release archive에는 외부 SDK나 업로드 경로가 없어 `No, we do not collect data from this app`가 가능한 후보다. | 실기기 동적 네트워크 감사를 통과한 뒤 App Store Connect 답변을 확정한다. 원격 크래시/분석, 백업, 계정, 클라우드 동기화, 광고 또는 사진/기록 전송을 추가하면 해당 데이터 유형·목적·연결성·추적 여부를 다시 선언한다. |
 | Privacy Manifest·Required Reason API | **조건부 — archive 번들 포함·plist 검증 완료, Privacy Report 확인 필요** | Apple은 앱/SDK의 수집 데이터와 Required Reason API 사유를 `PrivacyInfo.xcprivacy`에 기록하도록 문서화한다. Release archive의 앱 번들 루트에서 유효한 plist를 확인했으며, 추적 false, 수집 데이터 없음, `UserDefaults` (`CA92.1`)와 system boot time (`35F9.1`) 사유를 선언한다. | 서명된 배포 archive의 Xcode Privacy Report에서 예상한 두 Required Reason API와 실제 API 사용이 일치하는지 확인한다. 새 API·SDK를 추가하면 manifest 및 App Privacy를 같은 변경에서 갱신한다. |
 | 제3자 SDK·코드 | **필수 — archive 포함물 감사 완료, 권리 판단 필요** | Apple은 앱에 포함된 모든 제3자 코드의 개인정보 관행에 개발자가 책임진다고 명시한다. Release archive에는 외부 Swift Package SDK가 없고 TNoodle JAR/JVM/AGPL 실행 코드나 `.jar`/`.class`도 없다. 사전 생성한 텍스트 카탈로그와 provenance manifest만 번들한다. | TNoodle 출력·고지와 학습 콘텐츠의 배포 권리를 출시 책임자가 최종 확인한다. 향후 SDK마다 버전, 라이선스, privacy manifest, Apple의 “required SDK” 목록 해당 여부와 바이너리 서명을 기록한다. |
@@ -54,7 +54,7 @@
 ### 릴리스 바이너리에서 확인할 항목
 
 - [x] 앱의 개인정보 및 데이터 화면에 정책 URL과 모든 로컬 데이터 삭제 흐름이 있다.
-- [ ] GitHub Pages 배포 후 개인정보 처리방침 URL이 공개 HTTPS에서 `200`을 반환한다.
+- [x] GitHub Pages의 지원 페이지와 개인정보 처리방침 URL이 공개 HTTPS에서 `200`을 반환한다.
 - [ ] 카메라 승인/거부/제한/재승인, 앱 백그라운드·복귀, 촬영 실패에서 크래시 없이 수동 경로가 동작한다.
 - [ ] 라이브 프레임·JPEG·원본 사진이 Photos, 앱 Documents/Library, 로그, 크래시 리포트, 네트워크 요청에 남지 않는다.
 - [x] 무서명 Release archive의 번들 루트에 유효한 `PrivacyInfo.xcprivacy`가 있다.
@@ -120,6 +120,7 @@
 - 최종 archive 개인정보 감사: 앱 번들 루트의 `PrivacyInfo.xcprivacy` plist가 유효하고 추적 false, 수집 데이터 없음, `UserDefaults` (`CA92.1`)와 system boot time (`35F9.1`)만 선언함을 확인.
 - 최종 archive 카탈로그 감사: TNoodle-WCA 1.2.3 manifest, 32,768줄/32,768개 고유 카탈로그와 SHA-256 `b90257db20f387f94ef43083be6635430b9fc62c865023b6fe899653e3847d89` 확인.
 - 최종 archive 실행 파일: arm64, 외부 SDK/framework·AdSupport·`.jar`·`.class` 없음.
+- 공개 저장소 `https://github.com/KimDaehyeon6873/cube-coach-ios`, 지원 페이지 `https://kimdaehyeon6873.github.io/cube-coach-ios/`, 개인정보 처리방침 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html`이 HTTPS `200`을 반환함을 확인했다.
 - `xcrun devicectl list devices`: `No devices found`. 물리 iPhone 카메라 QA는 실행하지 못했다.
 
 ## 8. Apple 공식 근거
