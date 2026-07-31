@@ -66,7 +66,7 @@ public final class CubeCameraModel: ObservableObject {
         } catch let error as CubeCameraSessionError {
             availability = .unavailable(error.localizedDescription)
         } catch {
-            availability = .failed("카메라를 준비하지 못했어요. 수동 확인으로 계속할 수 있어요.")
+            availability = .failed("카메라를 준비하지 못했어요.\n전개도에 직접 입력할 수 있어요.")
         }
         #endif
     }
@@ -82,9 +82,21 @@ public final class CubeCameraModel: ObservableObject {
         isRunning = false
     }
 
+    #if DEBUG
+    /// Displays the camera guide against an empty preview in simulator UI QA.
+    /// This never runs in release builds and does not configure capture input.
+    public func showGuidePreviewForUITesting() {
+        analysisWarning = nil
+        availability = .ready
+    }
+    #endif
+
     public func capture() async throws -> CubePhotoAnalysis {
         guard availability == .ready else {
             throw CubeCameraSessionError.notReady
+        }
+        guard !isCapturing else {
+            throw CubeCameraSessionError.captureInProgress
         }
         isCapturing = true
         defer { isCapturing = false }
@@ -97,9 +109,26 @@ public final class CubeCameraModel: ObservableObject {
         guard availability == .ready else {
             throw CubeCameraSessionError.notReady
         }
+        guard !isCapturing else {
+            throw CubeCameraSessionError.captureInProgress
+        }
         isCapturing = true
         defer { isCapturing = false }
         return try await engine.capturePhoto(pose: pose)
+    }
+
+    /// Captures the requested face head-on using its standard top-edge
+    /// orientation and the central square portrait guide.
+    public func capture(face: CubeFace) async throws -> CubePhotoAnalysis {
+        guard availability == .ready else {
+            throw CubeCameraSessionError.notReady
+        }
+        guard !isCapturing else {
+            throw CubeCameraSessionError.captureInProgress
+        }
+        isCapturing = true
+        defer { isCapturing = false }
+        return try await engine.capturePhoto(face: face)
     }
 }
 

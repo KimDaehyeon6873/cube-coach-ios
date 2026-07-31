@@ -27,6 +27,13 @@ private func solvedPose(_ pose: CubeCapturePose) -> CubePoseObservation {
     )
 }
 
+private func solvedSingleFace(_ face: CubeFace) -> CubeSingleFaceObservation {
+    CubeSingleFaceObservation(
+        face: face,
+        samples: Array(repeating: centerSamples[face]!, count: 9)
+    )
+}
+
 private let fixtureLayout = CubeGuidedFaceLayout(quadrilaterals: [
     .top: .init(
         topLeft: .init(x: 0.05, y: 0.10),
@@ -137,6 +144,128 @@ private func expectFixtureSamples(_ observation: CubePoseObservation) {
     #expect(CubeCapturePose.downBackLeft.face(for: .right) == .back)
 }
 
+@Test func singleFaceProtocolUsesRequestedOrderAndExplicitTopEdgeInstructions() {
+    #expect(CubeFace.singleFaceCaptureOrder == [.up, .front, .right, .down, .back, .left])
+    let expectedTopEdges: [CubeFace: CubeFace] = [
+        .up: .back,
+        .front: .up,
+        .right: .up,
+        .down: .front,
+        .back: .up,
+        .left: .up,
+    ]
+    for face in CubeFace.singleFaceCaptureOrder {
+        let orientation = CubeSingleFaceCaptureOrientation.standard(for: face)
+        #expect(orientation.face == face)
+        #expect(orientation.topEdgeFace == expectedTopEdges[face])
+        #expect(orientation.transform == .identity)
+        #expect(orientation.instruction.contains(face.rawValue))
+        #expect(orientation.instruction.contains(orientation.topEdgeFace.rawValue))
+    }
+
+    let guide = CubeSingleFaceGuideLayout.portraitCentralSquare.quadrilateral
+    #expect(guide.topLeft.x == guide.bottomLeft.x)
+    #expect(guide.topRight.x == guide.bottomRight.x)
+    #expect(guide.topLeft.y == guide.topRight.y)
+    #expect(guide.bottomLeft.y == guide.bottomRight.y)
+    // AVCapture portrait photos are 3:4. These normalized spans therefore
+    // describe the same pixel length and render as a true square.
+    let pixelWidth = (guide.topRight.x - guide.topLeft.x) * 3
+    let pixelHeight = (guide.bottomLeft.y - guide.topLeft.y) * 4
+    #expect(abs(pixelWidth - pixelHeight) < 0.000_001)
+}
+
+@Test func sixSingleFaceObservationsReconstructAll54Facelets() throws {
+    let scan = try CubeSingleFaceletReconstructor.reconstruct(
+        observations: CubeFace.singleFaceCaptureOrder.map(solvedSingleFace)
+    )
+
+    #expect(scan.faceletCount == 54)
+    #expect(scan.faceletStringURFDLB ==
+        String(repeating: "U", count: 9) +
+        String(repeating: "R", count: 9) +
+        String(repeating: "F", count: 9) +
+        String(repeating: "D", count: 9) +
+        String(repeating: "L", count: 9) +
+        String(repeating: "B", count: 9))
+}
+
+@Test func repeatedSingleFaceCapturesAreMedianFusedDeterministically() throws {
+    let target = centerSamples[.front]!
+    let darkOutlier = CubeSingleFaceObservation(
+        face: .front,
+        samples: Array(repeating: .init(red: 0, green: 0, blue: 0), count: 9)
+    )
+    let observations = CubeFace.allCases.map(solvedSingleFace) + [
+        solvedSingleFace(.front),
+        darkOutlier,
+    ]
+
+    let scan = try CubeSingleFaceletReconstructor.reconstruct(observations: observations)
+    let frontSamples = try #require(scan.faceletsByFace[.front]?.map(\.sample))
+
+    #expect(frontSamples == Array(repeating: target, count: 9))
+}
+
+@Test func singleFaceOrientationTransformIsAppliedBeforeReconstruction() throws {
+    let markers = (0..<9).map {
+        CubeRGBSample(red: 0.05, green: 0.45 + Double($0) / 100, blue: 0.12)
+    }
+    let rotatedFront = CubeSingleFaceObservation(
+        face: .front,
+        samples: markers,
+        orientation: .init(
+            face: .front,
+            topEdgeFace: .right,
+            transform: .init(clockwiseQuarterTurns: 1),
+            instruction: "fixture"
+        )
+    )
+    let observations = CubeFace.allCases.filter { $0 != .front }.map(solvedSingleFace) + [rotatedFront]
+
+    let scan = try CubeSingleFaceletReconstructor.reconstruct(observations: observations)
+    let green = try #require(scan.faceletsByFace[.front]?.map(\.sample.green))
+
+    let expected = [0.51, 0.48, 0.45, 0.52, 0.49, 0.46, 0.53, 0.50, 0.47]
+    for (actual, target) in zip(green, expected) {
+        #expect(abs(actual - target) < 0.000_001)
+    }
+}
+
+@Test func singleFaceReconstructionReportsMissingInvalidAndMismatchedObservations() {
+    let missingBack = CubeFace.allCases.filter { $0 != .back }.map(solvedSingleFace)
+    #expect(throws: CubeFaceletReconstructionError.missingFace(.back)) {
+        try CubeSingleFaceletReconstructor.reconstruct(observations: missingBack)
+    }
+
+    let invalid = CubeSingleFaceObservation(
+        face: .up,
+        samples: Array(repeating: centerSamples[.up]!, count: 8)
+    )
+    #expect(throws: CubeFaceletReconstructionError.invalidSingleFaceSampleCount(
+        face: .up,
+        actual: 8
+    )) {
+        try CubeSingleFaceletReconstructor.reconstruct(
+            observations: CubeFace.allCases.filter { $0 != .up }.map(solvedSingleFace) + [invalid]
+        )
+    }
+
+    let mismatched = CubeSingleFaceObservation(
+        face: .up,
+        samples: Array(repeating: centerSamples[.up]!, count: 9),
+        orientation: .standard(for: .front)
+    )
+    #expect(throws: CubeFaceletReconstructionError.mismatchedSingleFaceOrientation(
+        observation: .up,
+        orientation: .front
+    )) {
+        try CubeSingleFaceletReconstructor.reconstruct(
+            observations: CubeFace.allCases.filter { $0 != .up }.map(solvedSingleFace) + [mismatched]
+        )
+    }
+}
+
 @Test func poseTransformsProduceStandardURFDLBMarkerOrientation() throws {
     let observations = CubeCapturePose.allCases.map { pose in
         CubePoseObservation(
@@ -215,6 +344,56 @@ private func expectFixtureSamples(_ observation: CubePoseObservation) {
     #expect(observation.faces.first(where: { $0.slot == .left })?.transform == .identity)
     #expect(observation.faces.first(where: { $0.slot == .right })?.transform == .identity)
     expectFixtureSamples(observation)
+}
+
+@Test func singleFaceJPEGExtractorReturnsNineCellsAndOrientationMetadata() throws {
+    let data = try jpegData(from: fixturePortraitImage())
+    let layout = CubeSingleFaceGuideLayout(quadrilateral: .init(
+        topLeft: .init(x: 0.375, y: 0.10),
+        topRight: .init(x: 0.625, y: 0.10),
+        bottomRight: .init(x: 0.625, y: 0.40),
+        bottomLeft: .init(x: 0.375, y: 0.40)
+    ))
+
+    let observation = try CubeSingleFaceExtractor.extract(
+        jpegData: data,
+        face: .front,
+        layout: layout
+    )
+
+    #expect(observation.face == .front)
+    #expect(observation.orientation == .standard(for: .front))
+    #expect(observation.samples.count == 9)
+    for (sample, target) in zip(observation.samples, fixtureCellColors[.left]!) {
+        #expect(abs(sample.red - target.red) < 0.08)
+        #expect(abs(sample.green - target.green) < 0.08)
+        #expect(abs(sample.blue - target.blue) < 0.08)
+    }
+}
+
+@Test func singleFaceJPEGExtractorAppliesEXIFOrientation() throws {
+    let portrait = CIImage(cgImage: try fixturePortraitImage())
+    let landscape = portrait.oriented(.left)
+    let landscapeImage = try #require(CIContext().createCGImage(landscape, from: landscape.extent))
+    let data = try jpegData(from: landscapeImage, orientation: 6)
+    let layout = CubeSingleFaceGuideLayout(quadrilateral: .init(
+        topLeft: .init(x: 0.375, y: 0.10),
+        topRight: .init(x: 0.625, y: 0.10),
+        bottomRight: .init(x: 0.625, y: 0.40),
+        bottomLeft: .init(x: 0.375, y: 0.40)
+    ))
+
+    let observation = try CubeSingleFaceExtractor.extract(
+        jpegData: data,
+        face: .front,
+        layout: layout
+    )
+
+    for (sample, target) in zip(observation.samples, fixtureCellColors[.left]!) {
+        #expect(abs(sample.red - target.red) < 0.08)
+        #expect(abs(sample.green - target.green) < 0.08)
+        #expect(abs(sample.blue - target.blue) < 0.08)
+    }
 }
 
 @Test func guidedJPEGExtractorAppliesImageOrientationMetadata() throws {

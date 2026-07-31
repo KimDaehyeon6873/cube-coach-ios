@@ -7,6 +7,7 @@ public enum CubeCameraSessionError: LocalizedError, Sendable {
     case noCamera
     case configurationFailed
     case notReady
+    case captureInProgress
     case captureFailed
     case visionAnalysisFailed
     case guidedFaceExtractionFailed
@@ -16,10 +17,11 @@ public enum CubeCameraSessionError: LocalizedError, Sendable {
         case .noCamera: "사용 가능한 후면 카메라가 없어요."
         case .configurationFailed: "카메라 구성을 완료하지 못했어요."
         case .notReady: "카메라가 아직 준비되지 않았어요."
-        case .captureFailed: "사진 품질을 확인하지 못했어요. 다시 촬영해 주세요."
-        case .visionAnalysisFailed: "사진에서 큐브 면을 찾지 못했어요. 안내선에 맞춰 다시 촬영해 주세요."
+        case .captureInProgress: "이미 촬영한 색상을 읽고 있어요."
+        case .captureFailed: "사진 품질을 확인하지 못했어요.\n다시 촬영해 주세요."
+        case .visionAnalysisFailed: "사진에서 큐브 면을 찾지 못했어요.\n안내선에 맞춰 다시 촬영해 주세요."
         case .guidedFaceExtractionFailed:
-            "큐브를 촬영 가이드에 맞춰 다시 촬영해 주세요. 이 기능은 가이드 영역만 분석합니다."
+            "3×3 전체를 안내선에 맞춰 주세요.\n네 모서리를 확인한 뒤 다시 촬영해 주세요."
         }
     }
 }
@@ -43,6 +45,134 @@ public enum CubeGuidedFaceExtractionError: LocalizedError, Equatable, Sendable {
         case .perspectiveCorrectionFailed, .renderFailed:
             "가이드 영역의 색상 표본을 만들지 못했어요."
         }
+    }
+}
+
+public enum CubeSingleFaceExtractionError: LocalizedError, Equatable, Sendable {
+    case invalidImageData
+    case invalidPortraitImage(width: Int, height: Int)
+    case invalidGuideRegion
+    case perspectiveCorrectionFailed
+    case renderFailed
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidImageData:
+            "촬영 이미지를 읽지 못했어요."
+        case .invalidPortraitImage:
+            "촬영 이미지의 세로 방향을 확인하지 못했어요."
+        case .invalidGuideRegion:
+            "한 면 촬영 가이드 구성이 올바르지 않아요."
+        case .perspectiveCorrectionFailed, .renderFailed:
+            "정면 가이드 영역의 색상 표본을 만들지 못했어요."
+        }
+    }
+}
+
+/// Perspective-corrects and samples the one face explicitly positioned in the
+/// central portrait guide. It does not attempt arbitrary object recognition.
+public enum CubeSingleFaceExtractor {
+    public static func extract(
+        jpegData: Data,
+        face: CubeFace,
+        layout: CubeSingleFaceGuideLayout = .portraitCentralSquare,
+        orientation: CubeSingleFaceCaptureOrientation? = nil
+    ) throws -> CubeSingleFaceObservation {
+        let options: [CIImageOption: Any] = [.applyOrientationProperty: true]
+        guard let image = CIImage(data: jpegData, options: options) else {
+            throw CubeSingleFaceExtractionError.invalidImageData
+        }
+        let extent = image.extent.integral
+        guard extent.width >= 6, extent.height >= 6, extent.height >= extent.width else {
+            throw CubeSingleFaceExtractionError.invalidPortraitImage(
+                width: Int(extent.width),
+                height: Int(extent.height)
+            )
+        }
+        let guide = layout.quadrilateral
+        let normalized = [guide.topLeft, guide.topRight, guide.bottomRight, guide.bottomLeft]
+        guard normalized.allSatisfy({
+            $0.x.isFinite && $0.y.isFinite &&
+            (0...1).contains($0.x) && (0...1).contains($0.y)
+        }) else {
+            throw CubeSingleFaceExtractionError.invalidGuideRegion
+        }
+        func point(_ value: CubeNormalizedGuidePoint) -> CGPoint {
+            CGPoint(
+                x: extent.minX + value.x * extent.width,
+                y: extent.maxY - value.y * extent.height
+            )
+        }
+        let topLeft = point(guide.topLeft)
+        let topRight = point(guide.topRight)
+        let bottomRight = point(guide.bottomRight)
+        let bottomLeft = point(guide.bottomLeft)
+        let edgeLengths = [
+            hypot(topRight.x - topLeft.x, topRight.y - topLeft.y),
+            hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y),
+            hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y),
+            hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y),
+        ]
+        guard edgeLengths.min() ?? 0 >= 6 else {
+            throw CubeSingleFaceExtractionError.invalidGuideRegion
+        }
+
+        guard let filter = CIFilter(name: "CIPerspectiveCorrection") else {
+            throw CubeSingleFaceExtractionError.perspectiveCorrectionFailed
+        }
+        filter.setValue(image, forKey: kCIInputImageKey)
+        filter.setValue(CIVector(cgPoint: topLeft), forKey: "inputTopLeft")
+        filter.setValue(CIVector(cgPoint: topRight), forKey: "inputTopRight")
+        filter.setValue(CIVector(cgPoint: bottomRight), forKey: "inputBottomRight")
+        filter.setValue(CIVector(cgPoint: bottomLeft), forKey: "inputBottomLeft")
+        guard let corrected = filter.outputImage else {
+            throw CubeSingleFaceExtractionError.perspectiveCorrectionFailed
+        }
+        let correctedExtent = corrected.extent.integral
+        guard correctedExtent.width.isFinite,
+              correctedExtent.height.isFinite,
+              correctedExtent.width >= 6,
+              correctedExtent.height >= 6 else {
+            throw CubeSingleFaceExtractionError.perspectiveCorrectionFailed
+        }
+        let scale = min(1, 240 / max(correctedExtent.width, correctedExtent.height))
+        let translated = corrected.transformed(by: .init(
+            translationX: -correctedExtent.minX,
+            y: -correctedExtent.minY
+        ))
+        let scaled = translated.transformed(by: .init(scaleX: scale, y: scale))
+        let scaledExtent = scaled.extent.integral
+        let width = Int(scaledExtent.width)
+        let height = Int(scaledExtent.height)
+        guard width >= 6, height >= 6 else {
+            throw CubeSingleFaceExtractionError.renderFailed
+        }
+        var bytes = Array(repeating: UInt8(0), count: width * height * 4)
+        CIContext(options: [.cacheIntermediates: false]).render(
+            scaled,
+            toBitmap: &bytes,
+            rowBytes: width * 4,
+            bounds: CGRect(x: 0, y: 0, width: width, height: height),
+            format: .RGBA8,
+            colorSpace: CGColorSpace(name: CGColorSpace.sRGB)
+        )
+        let pixels = stride(from: 0, to: bytes.count, by: 4).map { offset in
+            CubeRGBSample(
+                red: Double(bytes[offset]) / 255,
+                green: Double(bytes[offset + 1]) / 255,
+                blue: Double(bytes[offset + 2]) / 255
+            )
+        }
+        guard pixels.count == width * height else {
+            throw CubeSingleFaceExtractionError.renderFailed
+        }
+        return CubeSingleFaceObservation(
+            face: face,
+            samples: try CubeFaceGridSampler.samples(
+                from: .init(width: width, height: height, pixels: pixels)
+            ),
+            orientation: orientation
+        )
     }
 }
 
@@ -209,8 +339,14 @@ public enum CubeGuidedFaceExtractor {
 /// configuration may block. The type is unchecked Sendable only to allow those
 /// queue hops; mutable capture state never leaves its owning queues.
 final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
+    private enum CaptureTarget {
+        case unguided
+        case pose(CubeCapturePose)
+        case face(CubeSingleFaceCaptureOrientation)
+    }
+
     private struct PendingCapture {
-        let pose: CubeCapturePose?
+        let target: CaptureTarget
         let continuation: CheckedContinuation<CubePhotoAnalysis, Error>
     }
 
@@ -281,14 +417,22 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
     }
 
     func capturePhoto() async throws -> CubePhotoAnalysis {
-        try await capturePhoto(pose: nil)
+        try await capturePhoto(target: .unguided)
     }
 
     func capturePhoto(pose: CubeCapturePose) async throws -> CubePhotoAnalysis {
-        try await capturePhoto(pose: Optional(pose))
+        try await capturePhoto(target: .pose(pose))
     }
 
-    private func capturePhoto(pose: CubeCapturePose?) async throws -> CubePhotoAnalysis {
+    func capturePhoto(face: CubeFace) async throws -> CubePhotoAnalysis {
+        try await capturePhoto(target: .face(.standard(for: face)))
+    }
+
+    func capturePhoto(orientation: CubeSingleFaceCaptureOrientation) async throws -> CubePhotoAnalysis {
+        try await capturePhoto(target: .face(orientation))
+    }
+
+    private func capturePhoto(target: CaptureTarget) async throws -> CubePhotoAnalysis {
         try await withCheckedThrowingContinuation { continuation in
             sessionQueue.async { [self] in
                 guard isConfigured else {
@@ -298,7 +442,7 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
                 let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
                 pendingLock.withLock {
                     pendingCaptures[settings.uniqueID] = PendingCapture(
-                        pose: pose,
+                        target: target,
                         continuation: continuation
                     )
                 }
@@ -371,15 +515,30 @@ extension CubeCameraSessionEngine: AVCapturePhotoCaptureDelegate {
         visionQueue.async {
             do {
                 let count = try Self.rectangleCount(in: data)
-                let observation = try pendingCapture.pose.map {
-                    try CubeGuidedFaceExtractor.extract(jpegData: data, pose: $0)
+                let poseObservation: CubePoseObservation?
+                let faceObservation: CubeSingleFaceObservation?
+                switch pendingCapture.target {
+                case .unguided:
+                    poseObservation = nil
+                    faceObservation = nil
+                case let .pose(pose):
+                    poseObservation = try CubeGuidedFaceExtractor.extract(jpegData: data, pose: pose)
+                    faceObservation = nil
+                case let .face(orientation):
+                    poseObservation = nil
+                    faceObservation = try CubeSingleFaceExtractor.extract(
+                        jpegData: data,
+                        face: orientation.face,
+                        orientation: orientation
+                    )
                 }
                 pendingCapture.continuation.resume(returning: CubePhotoAnalysis(
                     rectangleCandidateCount: count,
                     confidence: Self.confidence(for: count),
-                    poseObservation: observation
+                    poseObservation: poseObservation,
+                    singleFaceObservation: faceObservation
                 ))
-            } catch is CubeGuidedFaceExtractionError {
+            } catch is CubeGuidedFaceExtractionError, is CubeSingleFaceExtractionError {
                 pendingCapture.continuation.resume(
                     throwing: CubeCameraSessionError.guidedFaceExtractionFailed
                 )

@@ -44,6 +44,7 @@ let package = Package(
                 "App/LearningModels.swift",
                 "App/LearningProgressStore.swift",
                 "App/CubeScanCaptureFlow.swift",
+                "App/CubeScanReviewModel.swift",
                 "App/TrainerAttemptState.swift",
                 "App/TrainerSessionState.swift",
                 "Features/Timer/TimerEngine.swift",

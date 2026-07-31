@@ -66,7 +66,7 @@ struct TimerPracticeContainer: View {
                     } label: {
                         Label("내 큐브 확인", systemImage: "camera.viewfinder")
                     }
-                    .accessibilityHint("카메라 촬영 또는 54칸 직접 입력으로 내 큐브 상태를 확인합니다")
+                    .accessibilityHint("카메라로 촬영하거나 전개도에 직접 입력해 내 큐브 상태를 확인합니다")
                 }
             }
     }

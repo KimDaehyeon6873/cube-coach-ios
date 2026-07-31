@@ -2,7 +2,7 @@
 
 CubeCoach는 3×3×3 큐브를 **대신 풀어 주는 앱이 아니라**, 사용자가 공식을 기억하고 케이스를 인식하며 실제 솔빙 실력을 높이도록 돕는 iOS 코치입니다.
 
-카메라 인식은 사용자의 큐브 상태에서 다음 연습 단계를 찾는 입력 수단이며, 정답 동작을 끝까지 지시하지 않습니다. 현재 구현은 표준 6색 배치의 큐브를 안내선에 맞춰 `U/F/R`과 반대 꼭짓점의 `D/L/B` 두 포즈로 촬영하고, 기기 안에서 54칸 후보를 복원합니다. 사용자가 낮은 신뢰도 칸을 확인·수정하면 cubie 방향·순열 불변식을 검사하고 관련 회상 연습으로 연결합니다. 임의 사진 속 큐브를 찾아내는 범용 detector는 아닙니다.
+카메라 인식은 사용자의 큐브 상태에서 다음 연습 단계를 찾는 입력 수단이며, 정답 동작을 끝까지 지시하지 않습니다. 현재 구현은 표준 6색 배치의 큐브를 `U, F, R, D, B, L` 순서로 한 면씩 안내선에 맞춰 촬영하고, 기기 안에서 54칸 후보를 복원합니다. 사용자는 전개도와 선택한 면의 큰 편집기에서 결과를 확인하고 면별 재촬영 또는 직접 입력으로 수정할 수 있습니다. 수정된 상태는 색 수량, 엣지·코너 구성, 방향 합과 순열 parity를 검사한 뒤 관련 회상 연습으로 연결합니다. 임의 사진 속 큐브를 찾아내는 범용 detector는 아닙니다.
 
 ## 제품 원칙
 
@@ -40,8 +40,9 @@ CubeCoach는 3×3×3 큐브를 **대신 풀어 주는 앱이 아니라**, 사용
 - 별도 깊이와 `ScrollView` 없이 인라인 내비게이션·모드 선택·스크램블·축약 전개도·타이머를 한 화면에 배치한 연습 루트
 - 타이머 실행 중 전체 화면의 첫 touch-down 정지, 실행 중 화면 chrome 숨김, 중복 정지 요청 무시
 - 정지당 정확히 한 번 게시되는 다음 스크램블, 타이머의 방금 기록·페널티 수정과 기록 탭의 PB·평균·추세·최근 기록 통계 분리
-- 가이드 정렬식 두 포즈 카메라 입력, 투시 보정, 3×3 표본 추출, 센터 기준 색 분류와 자동 54칸 후보 복원
-- 색 수·조각 유일성·코너/엣지 방향 합·cubie permutation parity를 검사하는 상태 검증
+- `U, F, R, D, B, L` 여섯 면의 정면 촬영, 표준 상단 방향 안내, 투시 보정, 3×3 표본 추출, 센터 기준 색 분류와 자동 54칸 후보 복원
+- 54칸 전개도 검토, 선택한 면의 큰 편집기, 면별 재촬영, 사진 없이 직접 입력하는 대체 흐름
+- 색 수량·엣지/코너 조합·방향 합·cubie permutation parity를 위치와 가능한 색 조합으로 안내하는 상태 진단
 - 스캔 단계 진단과 대표 연습 추천 연결. 추천 화면의 전개도는 촬영한 54칸 상태 자체를 재현하지 않음
 - 최고 기록, 전체 평균, 완주율, 기록 편차, current/best Ao5·Ao12와 최근 기록 추세를 제공하는 기록 화면
 - 앱 내 개인정보 처리방침 링크와 모든 로컬 학습·솔브 데이터 삭제
@@ -51,7 +52,7 @@ CubeCoach는 3×3×3 큐브를 **대신 풀어 주는 앱이 아니라**, 사용
 - 무제한 네이티브 random-state 생성기와 공식 대회용 스크램블 운영
 - 임의 배경·방향의 사진에서 큐브를 찾는 범용 detector
 - 비표준 색 배치와 모든 조명·반사·가림·스티커리스 재질에서 무수정 인식을 보장하는 색상 모델
-- 복습 실행 뒤 두 포즈 재촬영으로 기대 상태와 정확히 비교하는 `validatedScan` 통합
+- 복습 실행 뒤 재촬영한 상태를 기대 상태와 정확히 비교하는 `validatedScan` 통합
 - 스캔 결과와 타이머·복습 스케줄의 완전한 통합
 - App Store Connect 메타데이터·배포 서명, 접근성·현지화와 실기기 카메라 최종 QA
 
@@ -80,7 +81,7 @@ open CubeCoach.xcodeproj
 
 Xcode에서 `CubeCoach` 스킴과 iOS 17 이상 대상을 선택해 실행합니다. 시뮬레이터에서는 학습·타이머·기록·수동 스캔 흐름을 확인할 수 있고, 실제 촬영·권한 흐름은 카메라가 있는 iPhone에서 검증해야 합니다.
 
-로컬 Xcode 26.6의 `IDESimulatorFoundation`/`DVTDownloads` 불일치는 `xcodebuild -runFirstLaunch`와 iOS 플랫폼 재설치로 정합화했습니다. iOS 26.5 런타임의 iPhone 17 Pro Simulator에서 Debug 빌드·설치·실행을 확인했고, iOS 26.5 SDK generic iOS Release clean archive도 strict concurrency·warnings-as-errors와 Store validation 단계를 통과했습니다. 이 archive는 구조 검증용 무서명 산출물입니다. 연결된 물리 iPhone이 없어 실제 카메라 권한·촬영·복귀 흐름은 아직 검증하지 못했으며, 시뮬레이터와 무서명 archive 통과는 이 실기기 검증을 대신하지 않습니다.
+로컬 Xcode 26.6의 `IDESimulatorFoundation`/`DVTDownloads` 불일치는 `xcodebuild -runFirstLaunch`와 iOS 플랫폼 재설치로 정합화했습니다. 최신 전체 `swift test`는 Swift Testing 139개와 XCTest 4개가 통과했고, strict concurrency·warnings-as-errors Simulator 빌드와 개발 팀으로 서명한 generic iOS 빌드도 성공했습니다. 등록된 iPhone은 현재 `unavailable` 상태여서 최신 빌드의 설치·실행과 라이브 카메라 인식률은 검증하지 못했습니다. 시뮬레이터와 generic iOS 빌드 통과는 이 실기기 검증을 대신하지 않습니다.
 
 ## 문서
 
@@ -90,7 +91,7 @@ Xcode에서 `CubeCoach` 스킴과 iOS 17 이상 대상을 선택해 실행합니
 | [`docs/UI_UX_AUDIT.md`](docs/UI_UX_AUDIT.md) | 2026-07-31 전체 UI·UX 라이팅·브랜드 감사와 남은 우선순위 |
 | [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) | 페르소나, JTBD, IA, MVP, 성공 지표 |
 | [`docs/LEARNING_EXPERIENCE.md`](docs/LEARNING_EXPERIENCE.md) | 물리 큐브 학습 계약, H0–H5, 2D stepper, 증거·출시 게이트 |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 모듈 경계, 2포즈 스캔, 스크램블, 개인정보 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 모듈 경계, 6면 정면 스캔, 스크램블, 개인정보 |
 | [`docs/RESEARCH.md`](docs/RESEARCH.md) | 국내외 큐빙, 학습과학, WCA, Apple 공식 자료 |
 | [`docs/APP_STORE_COMPLIANCE.md`](docs/APP_STORE_COMPLIANCE.md) | 2026-07-31 기준 App Store 제출·심사 체크리스트 |
 | [개인정보 처리방침](https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html) | GitHub Pages에 공개할 앱 내 정책 URL |

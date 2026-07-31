@@ -9,10 +9,25 @@ struct CubeCoachApp: App {
 
     var body: some Scene {
         WindowGroup {
-            CubeCoachRootView()
+            appContent
                 .environmentObject(learningStore)
                 .tint(.coachAccent)
                 .preferredColorScheme(appearanceMode.colorScheme)
         }
+    }
+
+    @ViewBuilder
+    private var appContent: some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-scan-preview") {
+            NavigationStack {
+                CubeScanFeatureView()
+            }
+        } else {
+            CubeCoachRootView()
+        }
+        #else
+        CubeCoachRootView()
+        #endif
     }
 }

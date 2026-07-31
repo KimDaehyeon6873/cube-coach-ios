@@ -15,15 +15,19 @@ public struct CubePhotoAnalysis: Equatable, Sendable {
     /// Present only when capture was requested for a specific guided pose.
     /// This is guide-aligned sampling, not arbitrary cube detection.
     public let poseObservation: CubePoseObservation?
+    /// Present only when capture was requested for one frontal face.
+    public let singleFaceObservation: CubeSingleFaceObservation?
 
     public init(
         rectangleCandidateCount: Int,
         confidence: Double,
-        poseObservation: CubePoseObservation? = nil
+        poseObservation: CubePoseObservation? = nil,
+        singleFaceObservation: CubeSingleFaceObservation? = nil
     ) {
         self.rectangleCandidateCount = rectangleCandidateCount
         self.confidence = confidence
         self.poseObservation = poseObservation
+        self.singleFaceObservation = singleFaceObservation
     }
 }
 
@@ -40,6 +44,83 @@ public enum CubeFace: String, CaseIterable, Codable, Hashable, Sendable {
     case back = "B"
 
     public static let faceletOrder: [CubeFace] = [.up, .right, .front, .down, .left, .back]
+    /// Guided frontal capture order. Adjacent steps require only a quarter turn
+    /// or half turn of the cube and keep the protocol easy to narrate.
+    public static let singleFaceCaptureOrder: [CubeFace] = [.up, .front, .right, .down, .back, .left]
+}
+
+// MARK: - Six frontal-face capture domain
+
+/// Orientation contract for a frontal capture. The named adjacent face must be
+/// held above the photographed face; the resulting grid transform maps camera
+/// row-major samples into the standard Singmaster diagram.
+public struct CubeSingleFaceCaptureOrientation: Equatable, Codable, Sendable {
+    public let face: CubeFace
+    public let topEdgeFace: CubeFace
+    public let transform: CubeFaceGridTransform
+    public let instruction: String
+
+    public init(
+        face: CubeFace,
+        topEdgeFace: CubeFace,
+        transform: CubeFaceGridTransform = .identity,
+        instruction: String
+    ) {
+        self.face = face
+        self.topEdgeFace = topEdgeFace
+        self.transform = transform
+        self.instruction = instruction
+    }
+
+    /// Orientations match the standard URFDLB face diagrams, so no implicit
+    /// mirroring or post-capture guesswork is required.
+    public static func standard(for face: CubeFace) -> Self {
+        let topEdgeFace: CubeFace = switch face {
+        case .up: .back
+        case .right, .front, .back, .left: .up
+        case .down: .front
+        }
+        return Self(
+            face: face,
+            topEdgeFace: topEdgeFace,
+            instruction: "\(face.rawValue) 면을 정면으로 두고 \(topEdgeFace.rawValue) 면이 위쪽에 오게 맞춰 주세요."
+        )
+    }
+}
+
+/// A centered square guide in portrait display coordinates. At the standard
+/// 3:4 photo aspect ratio its pixel width and height are equal.
+public struct CubeSingleFaceGuideLayout: Equatable, Codable, Sendable {
+    public let quadrilateral: CubeNormalizedGuideQuadrilateral
+
+    public init(quadrilateral: CubeNormalizedGuideQuadrilateral) {
+        self.quadrilateral = quadrilateral
+    }
+
+    public static let portraitCentralSquare = CubeSingleFaceGuideLayout(
+        quadrilateral: .init(
+            topLeft: .init(x: 0.20, y: 0.275),
+            topRight: .init(x: 0.80, y: 0.275),
+            bottomRight: .init(x: 0.80, y: 0.725),
+            bottomLeft: .init(x: 0.20, y: 0.725)
+        )
+    )
+}
+
+public struct CubeSingleFaceObservation: Equatable, Codable, Sendable {
+    public let face: CubeFace
+    public let samples: [CubeRGBSample]
+    public let orientation: CubeSingleFaceCaptureOrientation
+
+    public init(
+        face: CubeFace,
+        samples: [CubeRGBSample],
+        orientation: CubeSingleFaceCaptureOrientation? = nil
+    ) {
+        self.face = face
+        self.samples = samples
+        self.orientation = orientation ?? .standard(for: face)
+    }
 }
 
 /// The three regions in the capture guide. A Vision implementation can rectify
@@ -187,6 +268,29 @@ public struct CubeRGBSample: Equatable, Codable, Sendable {
         let divisor = Double(count)
         return CubeRGBSample(red: red / divisor, green: green / divisor, blue: blue / divisor)
     }
+
+    /// Coordinate-wise median rejects isolated white glare and dark border
+    /// leakage without requiring a camera-specific brightness threshold.
+    public static func robustRepresentative<S: Sequence>(_ pixels: S) -> CubeRGBSample
+    where S.Element == CubeRGBSample {
+        let values = Array(pixels)
+        guard !values.isEmpty else {
+            return CubeRGBSample(red: 0, green: 0, blue: 0)
+        }
+        func median(_ channel: (CubeRGBSample) -> Double) -> Double {
+            let sorted = values.map(channel).sorted()
+            let middle = sorted.count / 2
+            if sorted.count.isMultiple(of: 2) {
+                return (sorted[middle - 1] + sorted[middle]) / 2
+            }
+            return sorted[middle]
+        }
+        return CubeRGBSample(
+            red: median(\.red),
+            green: median(\.green),
+            blue: median(\.blue)
+        )
+    }
 }
 
 /// Pixel data after Vision (or another detector) has perspective-rectified one
@@ -209,8 +313,8 @@ public enum CubeFaceGridSamplingError: Error, Equatable, Sendable {
     case faceTooSmall(width: Int, height: Int)
 }
 
-/// Splits a rectified face into row-major 3×3 cells and averages an inset
-/// interior region so black plastic borders do not dominate sticker colors.
+/// Splits a rectified face into row-major 3×3 cells and takes a robust
+/// representative of each inset interior region.
 public enum CubeFaceGridSampler {
     public static func samples(
         from image: CubeRectifiedFaceImage,
@@ -251,7 +355,7 @@ public enum CubeFaceGridSampler {
                         pixels.append(image.pixels[y * image.width + x])
                     }
                 }
-                result.append(CubeRGBSample.average(pixels))
+                result.append(CubeRGBSample.robustRepresentative(pixels))
             }
         }
         return result
@@ -355,6 +459,8 @@ public enum CubeFaceletReconstructionError: Error, Equatable, Sendable {
     case invalidSampleCount(pose: CubeCapturePose, slot: CubePoseFaceSlot, actual: Int)
     case missingFace(CubeFace)
     case duplicateFace(CubeFace)
+    case invalidSingleFaceSampleCount(face: CubeFace, actual: Int)
+    case mismatchedSingleFaceOrientation(observation: CubeFace, orientation: CubeFace)
 }
 
 /// Reconstructs 54 standardized facelets from the two opposite-corner captures.
@@ -376,6 +482,63 @@ public enum CubeFaceletReconstructor {
             return (face, samples.map { classifier.classify($0) })
         })
         return CubeFaceletScan(faceletsByFace: classified)
+    }
+
+    /// Reconstructs from six frontal captures. Repeated captures of a face are
+    /// accepted and fused deterministically with a per-channel median.
+    public static func reconstruct(
+        observations: [CubeSingleFaceObservation]
+    ) throws -> CubeFaceletScan {
+        var gridsByFace: [CubeFace: [[CubeRGBSample]]] = [:]
+        for observation in observations {
+            guard observation.orientation.face == observation.face else {
+                throw CubeFaceletReconstructionError.mismatchedSingleFaceOrientation(
+                    observation: observation.face,
+                    orientation: observation.orientation.face
+                )
+            }
+            guard observation.samples.count == 9 else {
+                throw CubeFaceletReconstructionError.invalidSingleFaceSampleCount(
+                    face: observation.face,
+                    actual: observation.samples.count
+                )
+            }
+            var standardized = Array(
+                repeating: CubeRGBSample(red: 0, green: 0, blue: 0),
+                count: 9
+            )
+            for (sourceIndex, sample) in observation.samples.enumerated() {
+                standardized[
+                    observation.orientation.transform.standardIndex(forSourceIndex: sourceIndex)
+                ] = sample
+            }
+            gridsByFace[observation.face, default: []].append(standardized)
+        }
+
+        var fusedByFace: [CubeFace: [CubeRGBSample]] = [:]
+        for face in CubeFace.allCases {
+            guard let grids = gridsByFace[face], !grids.isEmpty else {
+                throw CubeFaceletReconstructionError.missingFace(face)
+            }
+            fusedByFace[face] = (0..<9).map { index in
+                CubeRGBSample.robustRepresentative(grids.map { $0[index] })
+            }
+        }
+        return classify(gridsByFace: fusedByFace)
+    }
+
+    private static func classify(
+        gridsByFace: [CubeFace: [CubeRGBSample]]
+    ) -> CubeFaceletScan {
+        let centers = Dictionary(uniqueKeysWithValues: CubeFace.faceletOrder.compactMap { face in
+            gridsByFace[face].map { (face, $0[4]) }
+        })
+        let classifier = CubeCenterColorClassifier(centers: centers)
+        return CubeFaceletScan(faceletsByFace: Dictionary(
+            uniqueKeysWithValues: CubeFace.faceletOrder.map { face in
+                (face, gridsByFace[face, default: []].map { classifier.classify($0) })
+            }
+        ))
     }
 
     private static func validatedObservations(
@@ -432,6 +595,15 @@ public enum CubeFaceletReconstructor {
             throw CubeFaceletReconstructionError.missingFace(face)
         }
         return result
+    }
+}
+
+/// Explicit entry point for the guided six-frontal-face protocol.
+public enum CubeSingleFaceletReconstructor {
+    public static func reconstruct(
+        observations: [CubeSingleFaceObservation]
+    ) throws -> CubeFaceletScan {
+        try CubeFaceletReconstructor.reconstruct(observations: observations)
     }
 }
 
