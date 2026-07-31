@@ -267,24 +267,24 @@ private func expectFixtureSamples(_ observation: CubePoseObservation) {
 }
 
 @Test func poseTransformsProduceStandardURFDLBMarkerOrientation() throws {
+    func markerSample(face: CubeFace, index: Int) -> CubeRGBSample {
+        let base = centerSamples[face]!
+        let marker = Double(index) / 1_000
+        return CubeRGBSample(
+            red: base.red + marker,
+            green: base.green + marker / 2,
+            blue: base.blue + marker / 3
+        )
+    }
+
     let observations = CubeCapturePose.allCases.map { pose in
         CubePoseObservation(
             pose: pose,
             faces: CubePoseFaceSlot.allCases.map { slot in
                 let face = pose.face(for: slot)
-                let offset = CubeFace.faceletOrder.firstIndex(of: face)! * 9
-                var markers: [CubeRGBSample] = []
-                for index in 0..<9 {
-                    let marker = offset + index
-                    markers.append(CubeRGBSample(
-                        red: Double(marker) / 100,
-                        green: Double(marker + 1) / 100,
-                        blue: Double(marker + 2) / 100
-                    ))
-                }
                 return CubeFaceGridSamples(
                     slot: slot,
-                    samples: markers,
+                    samples: (0..<9).map { markerSample(face: face, index: $0) },
                     transform: pose.standardFaceletTransform(for: slot)
                 )
             }
@@ -301,13 +301,13 @@ private func expectFixtureSamples(_ observation: CubePoseObservation) {
         .back: [8, 7, 6, 5, 4, 3, 2, 1, 0],
     ]
 
-    for (faceOffset, face) in CubeFace.faceletOrder.enumerated() {
+    for face in CubeFace.faceletOrder {
         let facelets = scan.faceletsByFace[face] ?? []
         #expect(facelets.count == 9)
-        let actual = facelets.map {
-            Int(($0.sample.red * 100).rounded())
+        let actual = facelets.map(\.sample)
+        let expected = markerIndicesByFace[face]!.map {
+            markerSample(face: face, index: $0)
         }
-        let expected = markerIndicesByFace[face]!.map { faceOffset * 9 + $0 }
         #expect(actual == expected)
     }
 }

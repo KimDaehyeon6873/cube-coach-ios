@@ -554,7 +554,7 @@ public struct TimerFeatureView: View {
 
 #if canImport(UIKit)
 @MainActor
-private struct TimerTouchDownStopSurface: UIViewRepresentable {
+struct TimerTouchDownStopSurface: UIViewRepresentable {
     let isActive: Bool
     let onTouchDown: @MainActor () -> Void
 
@@ -621,7 +621,7 @@ private struct TimerTouchDownStopSurface: UIViewRepresentable {
     }
 }
 #else
-private struct TimerTouchDownStopSurface: View {
+struct TimerTouchDownStopSurface: View {
     let isActive: Bool
     let onTouchDown: () -> Void
 

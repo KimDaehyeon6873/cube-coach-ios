@@ -63,7 +63,7 @@
 1. AVFoundation은 카메라 입력·미리보기·사진·비디오 프레임 파이프라인을 제공한다.
 2. Vision의 사각형/윤곽 검출은 큐브 면 기하의 후보를 찾는 데 쓸 수 있지만 큐브의 3×3 의미나 색 상태를 자동으로 해결하지 않는다.
 3. Vision + Core ML은 라이브 객체 검출과 온디바이스 추론을 지원한다.
-4. 두 포즈의 반대 세 면은 54개 스티커를 볼 수 있지만, 두 정지 사진만으로 임의 회전 관계가 항상 정해지는 것은 아니다. 안내된 전환, 라이브 추적 또는 사용자 확인이 필요하다.
+4. 초기에는 반대 꼭짓점 두 포즈로 54개 스티커를 읽는 방식을 검토했다. 그러나 두 정지 사진만으로 임의 회전 관계를 안정적으로 정하기 어렵고 실제 인식률도 확보되지 않아, 현재 구현은 면별 상단 방향을 고정한 여섯 면 정면 촬영을 사용한다.
 5. Apple은 필요한 시점에 권한을 요청하고 목적을 구체적으로 설명할 것을 권고한다. 온디바이스 처리 데이터는 오프디바이스 수집과 구분되지만 실제 데이터 흐름에 맞춰 App Store 개인정보 답변을 유지해야 한다.
 
 ## 4. 대한민국 자료
@@ -467,7 +467,7 @@
 - 구현된 대체 계약은 `caseID + 시작/완료 시각 + 준비 방식 + 시각 인식 증거 + 최고 도움 H0–H5 + playback 여부 + 기대 상태 수동 비교 + 증거 + 모드 + 결정적 콘텐츠 버전`이다. 시작 상태·방향·공식 ID와 지연 구간은 후속 스키마다.
 - 독립 H0 후보는 사용자가 앱 밖에서 정확한 시작 상태를 이미 만들었다고 `externallyPrepared`를 명시하고 H1–H5·playback·인식 교정을 사용하지 않은 경우뿐이다. 정답 역순 설정을 연 `guidedAcquisition`과 레거시 준비 증거 누락은 지원 시도다.
 - `contentVersion`은 케이스의 인식 설명·공식·설정·청크에서 결정적으로 계산하며, 콘텐츠 변경 시 기존 스케줄을 그대로 이어 붙이지 않는다.
-- 수동 비교는 MVP 증거이지만 자동 검증이 아니다. `validatedScan` 사후 비교는 아직 미통합이며, 통합 뒤 유효 상태 스캔이 기대 상태와 일치한 경우에만 `검증됨`을 사용한다.
+- 수동 비교는 일반 복습 증거이지만 자동 검증이 아니다. 별도의 상태 연습은 검토한 합법 시작·결과 스캔을 같은 U/F 방향에서 Core 목표 조건으로 비교하도록 구현됐지만, 실기기 정확도 게이트 전에는 `validatedScan` evidence나 `검증됨` 라벨로 쓰지 않는다.
 
 ## 8. Apple 공식 자료
 
@@ -567,15 +567,16 @@
 ## 9.1 현재 CubeCoach 프로토타입 조사 판정
 
 - 스크램블: TNoodle-WCA 1.2.3 공식 서명 JAR로 사전 생성한 고유 출력 32,768개와 provenance manifest 번들
-- 카메라: 표준 6색 배치의 큐브를 고정 안내선에 맞춰 `U/F/R → D/L/B` 두 포즈로 촬영하고, EXIF 방향 적용·투시 보정·3×3 내부 표본·센터 기준 CIELab 분류로 54칸 후보와 셀별 신뢰도를 기기 안에서 생성
+- 카메라: 표준 6색 배치의 큐브를 고정된 상단 방향에 맞춰 `U, F, R, D, B, L` 여섯 면으로 정면 촬영한다. 완화된 라이브 촬영 조건 뒤 고해상도 검출 영역과 3×3 색 혼입을 다시 검사하고, 센터 분리 검사와 색당 9칸 전역 CIELab 배정으로 54칸 후보와 셀별 신뢰도를 기기 안에서 생성한다.
 - 카메라 한계: 임의 사진 속 큐브 detector, 비표준 색 배치 자동 추론, 모든 조명·반사·재질의 무수정 인식은 지원하지 않으며 물리 iPhone 정확도 검증이 남음
 - 상태 검증: 수동 교정 때마다 색 수·고정 센터·cubie 유일성·corner orientation·edge flip·corner/edge permutation parity를 검사
-- 스캔 연결: 합법 상태를 크로스·첫 층·두 번째 층·OLL·PLL·완성 단계로 진단해 `scanRecommendation` 대표 연습에 연결. 추천 전개도는 촬영한 54칸 상태 자체가 아니며 정확한 OLL/PLL 개별 케이스 matcher나 전체 해결열도 아님
-- 트레이너 스캔 경계: 촬영 54칸을 트레이너 시작 상태로 전달하거나 실행 뒤 기대 상태와 정확 비교하는 `validatedScan`은 아직 미통합. 현재 카메라는 단계 진단과 대표 연습 추천까지만 담당
+- 스캔 연결: 합법 상태를 크로스·첫 층·두 번째 층·OLL·PLL·AUF·완성 단계와 다음 목표로 진단한다. 미완성 상태는 검토한 `URFDLB` 54칸과 identity U/F 방향을 전용 메모리 내 상태 연습에 원자 전달하고, 완성 상태는 일반 타이머로 돌아간다.
+- 상태 연습 경계: 목표를 먼저 보여 주고 스크램블·해결열 없이 단조 활성 타이머, 전체 화면 정지, 일시정지 중 단계별 개념 힌트와 관련 학습, 같은 방향 결과 재촬영을 제공한다. Core 목표 predicate는 달성·개선·변화 없음·후퇴를 비교하지만 정확한 OLL/PLL 개별 케이스 matcher나 전체 해결기는 아니며 일반 타이머·학습 통계에 기록하지 않는다.
 - 통계 UI: 타이머 ao5/ao12, 기록 PB·session mean·완주율·최근 일관성·current/best ao5/ao12·최근 10/25/50회 추세와 학습·약점 통계
 - 통계 후속 범위: ao100, median, 분포, 일괄 편집·내보내기
 - 출시 커리큘럼: 초급 10, 완결 2-Look 15, Full CFOP 119(F2L 41·OLL 57·PLL 21), COLL 40, Roux CMLL 42의 실행형 항목 226개. 원천·라이선스·변환·검증 기록은 `ALGORITHM_CATALOG_SOURCES.md`에 분리
 - 현재 학습 UI: 평문·자기평가형 흐름을 제거하고 명시적 `externallyPrepared/guidedAcquisition` 준비 증거, 고정 방향 2D net·move stepper·H0–H5·시각 인식 판별·실물-기대 상태 수동 비교를 구현한 시뮬레이터 검증 프로토타입
+- 최신 검증: Swift Testing 226개와 XCTest 4개, strict concurrency·`GCC_TREAT_WARNINGS_AS_ERRORS=YES` iPhone 13 mini·iPhone 17 Pro Simulator 빌드, `xcodebuild analyze`, Apple Development 서명 generic iOS 빌드가 통과했다. 상태 연습 브리핑·일시정지·결과 레이아웃은 두 Simulator 프로필에서 잘리지 않았고 최신 앱은 연결된 물리 iPhone 13 mini에 설치·실행했다. 물리 기기 상태 연습 전체 상호작용과 광범위한 카메라 정확도 매트릭스는 남아 있다.
 - 앱 아이콘: 기본·다크·틴트용 1024px 이미지 자산 포함
 
 따라서 이 문서의 무제한 random-state, 임의 사진 detector, 비표준 색 배치와 조건 전반의 자동 보정은 현재 기능 설명이 아니라 제품·아키텍처 목표다. 현재 색 분류와 cubie 불변식은 가이드 정렬·표준 6색·사용자 확인이라는 제한 안에서 구현됐다.
@@ -584,10 +585,10 @@
 
 - [Apple HIG Camera Control](https://developer.apple.com/design/human-interface-guidelines/camera-control)은 촬영 경험에서 큰 viewfinder, 짧은 라벨, 최소한의 방해 요소를 권고한다. CubeCoach 촬영 화면에서는 카드·스크롤·탭 바를 제거하고 카메라 프리뷰, 포즈 가이드, 상태 한 줄과 셔터만 남긴다.
 - [Apple Designing for iOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-ios/)는 주요 과업에 집중하도록 화면 제어 수를 제한하고, 자주 쓰는 동작을 손이 닿기 쉬운 중간·하단에 두는 방향을 제시한다. 원형 셔터와 직접 입력 대체 경로를 하단에 둔다.
-- [AVCam](https://developer.apple.com/documentation/avfoundation/avcam-building-a-camera-app)과 [AVCaptureVideoPreviewLayer](https://developer.apple.com/documentation/avfoundation/avcapturevideopreviewlayer)는 실시간 촬영 프리뷰의 AVFoundation 기준이다. 현재 구현은 이 계층 위에 전용 3면 guide overlay를 올린다.
-- [DataScannerViewController](https://developer.apple.com/documentation/visionkit/datascannerviewcontroller)는 텍스트·바코드 인식, [VNDocumentCameraViewController](https://developer.apple.com/documentation/visionkit/vndocumentcameraviewcontroller)는 문서 페이지 촬영을 위한 UI다. 큐브 색·두 포즈·54칸 확인 계약과 맞지 않으므로 재사용하지 않는다.
+- [AVCam](https://developer.apple.com/documentation/avfoundation/avcam-building-a-camera-app)과 [AVCaptureVideoPreviewLayer](https://developer.apple.com/documentation/avfoundation/avcapturevideopreviewlayer)는 실시간 촬영 프리뷰의 AVFoundation 기준이다. 현재 구현은 이 계층 위에 한 면용 정사각형 guide와 자동 촬영 상태를 올린다.
+- [DataScannerViewController](https://developer.apple.com/documentation/visionkit/datascannerviewcontroller)는 텍스트·바코드 인식, [VNDocumentCameraViewController](https://developer.apple.com/documentation/visionkit/vndocumentcameraviewcontroller)는 문서 페이지 촬영을 위한 UI다. 큐브 색·면 방향·54칸 확인 계약과 맞지 않으므로 재사용하지 않는다.
 - 공개 보조 사례인 [CubeSolver AR](https://apps.apple.com/us/app/cubesolver-ar/id1497283315), [CubeSolve](https://cubesolve.app/), [CubeUnstuck Scanner](https://solver.cubeunstuck.com/)에서는 촬영 뒤 사람이 색을 확인하는 흐름, 촬영과 직접 입력의 분리, `흰색 위·초록색 앞` 같은 고정 방향 안내만 참고한다. 자동 해결 중심 표현과 외형은 복제하지 않는다.
-- 구현 결정: `진입 선택 → 권한 → 전체 화면 포즈 1 → 포즈 2 → 54칸 확인`을 사용한다. 촬영 화면은 닫기, `1/2` 또는 `2/2`, 얇은 3면 외곽선, 아이콘+문장 상태, 76pt 원형 셔터와 직접 입력만 표시한다. 촬영 사이 사진 검토 화면은 원본 이미지 보존·재촬영 계약을 정의한 뒤 후속 구현한다.
+- 구현 결정: `진입 선택 → 권한 → 전체 화면 U/F/R/D/B/L 면 촬영 → 54칸 색상 확인`을 사용한다. 촬영 화면은 닫기, `1/6`부터 `6/6`, 현재 면·위쪽 인접 면, 한 면 안내선, 짧은 상태, 자동 촬영과 원형 수동 셔터만 표시한다. 정지 사진 품질을 통과하지 못하면 같은 면에 머물고, 색상 확인 화면에서는 전개도·큰 면 편집·면별 재촬영을 제공한다.
 
 ## 10. 제품에 반영할 결정
 
@@ -599,7 +600,7 @@
 - 평문·공식 문자열 답안과 기억 난이도 자기평가를 제거한다.
 - 정답 역순 설정은 `guidedAcquisition`인 지원 시도로 기록한다. `externallyPrepared`를 명시하고 다른 도움을 쓰지 않은 H0만 독립 후보로 분류한다.
 - 도움은 H0 시작 상태 → H1 시각 인식 판별 단서 → H2 잡는 방향·기준 면·표기 프라이머 → H3 첫 move와 전후 상태 → H4 첫 의미 청크와 stepper → H5 전체 stepper 순으로 연다.
-- 현재 수동 일치 보고를 자동 검증으로 부르지 않는다. 후속 유효 상태 스캔은 별도 증거로 분리하고 검증 게이트 통과 결과에만 `검증됨`을 사용한다.
+- 현재 수동 일치 보고와 상태 연습의 전후 목표 비교를 자동 정확도 검증으로 부르지 않는다. 둘을 별도 증거로 분리하고 물리 기기 정확도 게이트 전에는 `검증됨`을 사용하지 않는다.
 - 역공식 설정과 전체 예시는 습득 지원이며 성공·완료·숙달로 세지 않는다.
 - 불완전한 샘플 커리큘럼에는 완료·숙달 문구를 사용하지 않는다.
 - 자유 연습과 케이스 훈련 스크램블을 분리한다.
@@ -618,7 +619,7 @@
 - 2D net·stepper가 3D 또는 영상보다 방향 오류와 실행 오류를 더 줄이는지
 - H0–H5의 순서와 정보량이 큐브 학습에 적절한지
 - 수동 일치 보고가 유효 상태 스캔과 얼마나 일치하는지
-- 두 포즈가 여섯 면 개별 촬영보다 실제로 충분히 빠르고 정확한지
+- 여섯 면 정면 촬영의 자동 셔터가 수동 촬영보다 충분히 빠르면서 색상 오류를 줄이는지
 - 인터리빙을 어느 숙련도부터 적용해야 하는지
 - 카메라 스캔이 학습 진입을 줄이는지 오히려 주의를 분산하는지
 
@@ -629,7 +630,7 @@
 1. 국내 입문자 5명, CFOP 전환자 5명, 중급 큐버 5명의 과업 인터뷰
 2. KCCU 관계자 또는 WCA Delegate에게 규정 연습 문구 검토 요청
 3. 한국어 큐브 강사 2인 이상에게 초급/2-Look 커리큘럼 교차 검수
-4. iPhone 3세대 이상, 큐브 재질 6종 이상, 조명 조건 5종 이상의 2포즈 데이터셋
+4. iPhone 3세대 이상, 큐브 재질 6종 이상, 조명 조건 5종 이상의 여섯 면 촬영 데이터셋
 5. 2D stepper 습득 후 H0–H5 물리 시도와 즉시 전체 공식 방식의 1주/4주 기대 상태 일치 비교
 6. 카메라 권한 거부 사용자도 핵심 JTBD를 완료하는지 접근성 포함 사용성 테스트
 7. 앱에 포함할 공식·도식·문구별 출처와 라이선스 레지스트리 구축

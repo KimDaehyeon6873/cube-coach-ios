@@ -5,6 +5,28 @@ import UIKit
 private typealias CameraCubeFace = CubeFace
 private typealias CoreCubeFace = CubeCoachCore.CubeFace
 
+private enum CubeCaptureOrigin {
+    case manual
+    case automatic
+}
+
+public enum CubeScanPurpose: Equatable, Sendable {
+    case initialPractice
+    case practiceResult
+}
+
+private struct CubeScanCaptureQualityError: LocalizedError {
+    let unreliableCellIndices: [Int]
+
+    var errorDescription: String? {
+        if unreliableCellIndices.isEmpty {
+            return "촬영 순간 큐브가 움직였어요.\n같은 면을 정면으로 맞춰 다시 촬영해 주세요."
+        }
+        let cells = unreliableCellIndices.map { String($0 + 1) }.joined(separator: "·")
+        return "\(cells)번 칸의 색이 섞여 보여요.\n같은 면을 정면으로 맞춰 다시 촬영해 주세요."
+    }
+}
+
 public struct CubeScanFeatureView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -15,21 +37,33 @@ public struct CubeScanFeatureView: View {
     @State private var reviewModel = CubeScanReviewModel()
     @State private var observations: [CameraCubeFace: CubeSingleFaceObservation] = [:]
     @State private var selectedStickerIndex: Int?
+    @State private var stickerEditFeedback: String?
     @State private var changedIndices: Set<Int> = []
+    @State private var userEditedIndices: Set<Int> = []
     @State private var diagnostic: CubeStateDiagnostic?
     @State private var validationMessage = "센터를 제외한 48칸을 채워 주세요."
     @State private var validatedDiagnosis: CubePracticeDiagnosis?
+    @State private var validatedState: CubeState?
     @State private var isLegalCubeState = false
     @State private var didConfirmReview = false
     @State private var captureError: String?
     @State private var isManualEntryConfirmationPresented = false
     @State private var isResetConfirmationPresented = false
     @State private var activeCaptureRequestID: UUID?
+    @State private var autoCaptureGate = CubeAutoCaptureGate()
+    @State private var autoCaptureGuidance: CubeAutoCaptureGuidance = .alignCube
+    @State private var autoCaptureProgress = 0.0
+    @State private var captureQualityMessage: String?
 
-    private let onStartPractice: (CubePracticeDiagnosis) -> Void
+    private let purpose: CubeScanPurpose
+    private let onAccept: (ValidatedCubeScan) -> Void
 
-    public init(onStartPractice: @escaping (CubePracticeDiagnosis) -> Void = { _ in }) {
-        self.onStartPractice = onStartPractice
+    public init(
+        purpose: CubeScanPurpose = .initialPractice,
+        onAccept: @escaping (ValidatedCubeScan) -> Void = { _ in }
+    ) {
+        self.purpose = purpose
+        self.onAccept = onAccept
     }
 
     public var body: some View {
@@ -43,8 +77,21 @@ public struct CubeScanFeatureView: View {
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle("큐브 가져오기")
+        .navigationTitle(
+            purpose == .practiceResult ? "결과 촬영" : "큐브 가져오기"
+        )
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if purpose == .practiceResult,
+               isEntryChoiceVisible || captureFlow.phase == .review {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("취소") {
+                        dismiss()
+                    }
+                    .accessibilityHint("결과 촬영을 닫고 중단한 연습으로 돌아갑니다")
+                }
+            }
+        }
         .toolbar(captureFlow.phase == .capture && !isEntryChoiceVisible ? .hidden : .automatic, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .onAppear {
@@ -53,6 +100,9 @@ public struct CubeScanFeatureView: View {
                captureFlow.phase == .capture,
                observations.isEmpty {
                 startManualReview()
+                if ProcessInfo.processInfo.arguments.contains("-scan-sticker-editor-preview") {
+                    selectedStickerIndex = CubeScanReviewModel.indices(for: .up).lowerBound
+                }
             } else if ProcessInfo.processInfo.arguments.contains("-scan-guide-preview"),
                       captureFlow.phase == .capture,
                       camera.availability == .idle {
@@ -66,17 +116,25 @@ public struct CubeScanFeatureView: View {
         }
         .onDisappear {
             activeCaptureRequestID = nil
+            resetAutoCaptureGate()
             camera.stop()
+        }
+        .onChange(of: camera.liveCaptureAssessment) { _, assessment in
+            handleLiveCaptureAssessment(assessment)
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard !isEntryChoiceVisible, captureFlow.phase == .capture else {
-                if newPhase != .active { camera.stop() }
+                if newPhase != .active {
+                    resetAutoCaptureGate()
+                    camera.stop()
+                }
                 return
             }
             if newPhase == .active, camera.availability == .ready {
                 camera.start()
             } else if newPhase != .active {
                 activeCaptureRequestID = nil
+                resetAutoCaptureGate()
                 camera.stop()
             }
         }
@@ -132,10 +190,10 @@ public struct CubeScanFeatureView: View {
                         .background(Color.coachAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 22))
 
                     VStack(spacing: 8) {
-                        Text("큐브 상태를 가져오세요")
+                        Text(entryTitle)
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
-                        Text("여섯 면을 정면으로 한 장씩 찍어요.\n잘못 인식된 면만 다시 촬영할 수 있어요.")
+                        Text(entryGuidance)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -149,7 +207,10 @@ public struct CubeScanFeatureView: View {
                         Button {
                             Task { await camera.prepare() }
                         } label: {
-                            Label("촬영해서 채우기", systemImage: "camera.fill")
+                            Label(
+                                purpose == .practiceResult ? "결과 촬영 시작" : "촬영해서 채우기",
+                                systemImage: "camera.fill"
+                            )
                                 .lineLimit(2)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -159,7 +220,12 @@ public struct CubeScanFeatureView: View {
                         Button {
                             startManualReview()
                         } label: {
-                            Label("전개도에 직접 입력", systemImage: "square.and.pencil")
+                            Label(
+                                purpose == .practiceResult
+                                    ? "결과 전개도 직접 입력"
+                                    : "전개도에 직접 입력",
+                                systemImage: "square.and.pencil"
+                            )
                                 .lineLimit(2)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 11)
@@ -186,6 +252,19 @@ public struct CubeScanFeatureView: View {
         }
     }
 
+    private var entryTitle: String {
+        purpose == .practiceResult
+            ? "지금 큐브 상태를 다시 가져오세요"
+            : "큐브 상태를 가져오세요"
+    }
+
+    private var entryGuidance: String {
+        if purpose == .practiceResult {
+            return "시도를 멈춘 큐브를 그대로 두고 여섯 면을 다시 보여 주세요.\n면마다 안내한 위쪽 방향을 맞추면 자동으로 촬영해요."
+        }
+        return "여섯 면을 차례로 정면에서 보여 주세요.\n3×3이 안내선 안에 들어오면 자동으로 촬영해요."
+    }
+
     // MARK: - Capture
 
     private var captureExperience: some View {
@@ -208,26 +287,10 @@ public struct CubeScanFeatureView: View {
     }
 
     private var captureTopBar: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                HStack {
-                    captureCloseButton
-                    Spacer()
-                    captureProgressPill
-                }
-            } else {
-                ZStack {
-                    HStack {
-                        captureCloseButton
-
-                        Spacer()
-
-                        captureStatusPill
-                    }
-
-                    captureProgressPill
-                }
-            }
+        HStack {
+            captureCloseButton
+            Spacer(minLength: 12)
+            captureProgressPill
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -265,16 +328,17 @@ public struct CubeScanFeatureView: View {
     private var captureStatusPill: some View {
         Label(captureStatusText, systemImage: captureStatusIcon)
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(camera.analysisWarning == nil ? .white : .orange)
+            .foregroundStyle(captureStatusColor)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(.black.opacity(0.58), in: Capsule())
+            .accessibilityElement(children: .combine)
     }
 
     private var captureStatusText: String {
         if camera.analysisWarning != nil { return "화면 확인 중" }
         return switch camera.availability {
-        case .ready: camera.isCapturing ? "색상 읽는 중" : "촬영 가능"
+        case .ready: autoCaptureStatusText
         case .requestingPermission, .idle: "카메라 준비 중"
         case .denied: "카메라 권한 필요"
         case .unavailable, .failed: "직접 입력 가능"
@@ -284,10 +348,47 @@ public struct CubeScanFeatureView: View {
     private var captureStatusIcon: String {
         if camera.analysisWarning != nil { return "exclamationmark.triangle.fill" }
         return switch camera.availability {
-        case .ready: camera.isCapturing ? "circle.dotted" : "checkmark.circle.fill"
+        case .ready: autoCaptureStatusIcon
         case .requestingPermission, .idle: "camera.fill"
         case .denied: "camera.fill.badge.xmark"
         case .unavailable, .failed: "square.and.pencil"
+        }
+    }
+
+    private var captureStatusColor: Color {
+        guard camera.analysisWarning == nil else { return .orange }
+        return switch autoCaptureGuidance {
+        case .ready: .green
+        case .adjustExposure, .improveSharpness: .yellow
+        default: .white
+        }
+    }
+
+    private var autoCaptureStatusText: String {
+        switch autoCaptureGuidance {
+        case .alignCube: "안내선 안에 두기"
+        case .holdSteady: "흔들림 줄이기"
+        case .improveSharpness: "초점 맞추기"
+        case .adjustExposure: "밝기 맞추기"
+        case .stabilizing: "안정화 중"
+        case .ready: "촬영 준비"
+        case .capturing: "사진 확인 중"
+        case .cooldown: "다시 준비 중"
+        case .changeScene: "다음 면으로 변경"
+        }
+    }
+
+    private var autoCaptureStatusIcon: String {
+        switch autoCaptureGuidance {
+        case .alignCube: "viewfinder"
+        case .holdSteady: "hand.raised.fill"
+        case .improveSharpness: "camera.metering.center.weighted"
+        case .adjustExposure: "sun.max.fill"
+        case .stabilizing: "circle.dotted"
+        case .ready: "checkmark.circle.fill"
+        case .capturing: "camera.fill"
+        case .cooldown: "clock.fill"
+        case .changeScene: "arrow.triangle.2.circlepath"
         }
     }
 
@@ -310,19 +411,48 @@ public struct CubeScanFeatureView: View {
         GeometryReader { proxy in
             let guide = CubeSingleFaceGuideLayout.portraitCentralSquare.quadrilateral
             ZStack {
-                GuideQuadrilateralShape(quadrilateral: guide)
-                    .stroke(.white.opacity(0.96), style: StrokeStyle(lineWidth: 2, dash: [7, 4]))
+                GuideQuadrilateralOutlineShape(quadrilateral: guide)
+                    .stroke(
+                        .black.opacity(0.72),
+                        style: StrokeStyle(
+                            lineWidth: guideIsReady ? 7 : 5,
+                            dash: guideIsReady ? [] : [7, 4]
+                        )
+                    )
+
+                GuideQuadrilateralOutlineShape(quadrilateral: guide)
+                    .stroke(
+                        guideStrokeColor,
+                        style: StrokeStyle(
+                            lineWidth: guideIsReady ? 4 : 2,
+                            dash: guideIsReady ? [] : [7, 4]
+                        )
+                    )
+
+                GuideInternalDividersShape(quadrilateral: guide)
+                    .stroke(.black.opacity(0.58), lineWidth: 3)
+
+                GuideInternalDividersShape(quadrilateral: guide)
+                    .stroke(.white.opacity(0.68), lineWidth: 1)
+
+                GuideCornerRailsShape(quadrilateral: guide)
+                    .stroke(
+                        .black.opacity(0.78),
+                        style: StrokeStyle(lineWidth: guideIsReady ? 9 : 7, lineCap: .round)
+                    )
+
+                GuideCornerRailsShape(quadrilateral: guide)
+                    .stroke(
+                        guideStrokeColor,
+                        style: StrokeStyle(lineWidth: guideIsReady ? 6 : 4, lineCap: .round)
+                    )
 
                 if let face = captureFlow.currentFace {
-                    Text(face.rawValue)
-                        .font(.system(size: 20, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .padding(8)
-                        .background(.black.opacity(0.48), in: Circle())
-                        .position(guideCenter(for: guide, in: proxy.size))
-
                     let topFace = CubeSingleFaceCaptureOrientation.standard(for: face).topEdgeFace
-                    Label("\(topFace.koreanColorName) 면이 위", systemImage: "arrow.up")
+                    Label(
+                        "\(face.koreanColorName) \(face.rawValue)면 · \(topFace.koreanColorName) 면이 위",
+                        systemImage: "arrow.up"
+                    )
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
@@ -335,11 +465,36 @@ public struct CubeScanFeatureView: View {
                                 proxy.size.height * CGFloat(guide.topLeft.y) - 24
                             )
                         )
+
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        captureStatusHUD
+                            .position(
+                                x: proxy.size.width * 0.5,
+                                y: min(
+                                    proxy.size.height - 38,
+                                    proxy.size.height * CGFloat(guide.bottomLeft.y) + 34
+                                )
+                            )
+                    }
                 }
             }
+            .animation(.easeInOut(duration: 0.18), value: autoCaptureGuidance)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(currentCaptureAccessibilityLabel)
+        .accessibilityValue(captureStatusAccessibilityValue)
+    }
+
+    private var captureStatusHUD: some View {
+        VStack(spacing: 5) {
+            captureStatusPill
+            ProgressView(value: autoCaptureProgress, total: 1)
+                .progressViewStyle(.linear)
+                .tint(guideStrokeColor)
+                .frame(width: 112)
+                .accessibilityHidden(true)
+        }
+        .accessibilityHidden(true)
     }
 
     private var currentCaptureAccessibilityLabel: String {
@@ -348,10 +503,73 @@ public struct CubeScanFeatureView: View {
         return "\(face.koreanColorName) \(face.rawValue)면을 정면으로 두고, \(orientation.topEdgeFace.koreanColorName) 면이 위로 오게 맞추세요"
     }
 
+    private var captureStatusAccessibilityValue: String {
+        if let captureQualityMessage {
+            return captureQualityMessage
+        }
+        if camera.analysisWarning != nil {
+            return "화면을 다시 확인하고 있어요."
+        }
+        return switch camera.availability {
+        case .idle, .requestingPermission:
+            "카메라를 준비하고 있어요."
+        case .denied:
+            "카메라 권한이 필요해요."
+        case .unavailable, .failed:
+            "카메라를 사용할 수 없어 전개도에 직접 입력할 수 있어요."
+        case .ready:
+            switch autoCaptureGuidance {
+            case .alignCube:
+                "큐브를 안내선 안에 맞추세요."
+            case .holdSteady:
+                "큐브를 움직이지 말고 그대로 유지하세요."
+            case .improveSharpness:
+                "초점이 맞을 때까지 그대로 유지하세요."
+            case .adjustExposure:
+                "큐브가 잘 보이도록 밝기를 조절하세요."
+            case .stabilizing:
+                "그대로 유지하세요."
+            case .ready:
+                "자동 촬영할 준비가 됐어요."
+            case .capturing:
+                "사진에서 색상을 확인하고 있어요."
+            case .cooldown:
+                "같은 면을 다시 촬영할 준비를 하고 있어요."
+            case .changeScene:
+                "촬영됐어요. 다음 면으로 바꾸세요."
+            }
+        }
+    }
+
+    private var guideIsReady: Bool {
+        switch autoCaptureGuidance {
+        case .ready, .capturing: true
+        default: false
+        }
+    }
+
+    private var guideStrokeColor: Color {
+        switch autoCaptureGuidance {
+        case .ready: .green
+        case .capturing: .white
+        case .adjustExposure, .improveSharpness: .yellow
+        default: .white.opacity(0.96)
+        }
+    }
+
     private var captureDock: some View {
         VStack(spacing: 12) {
             if dynamicTypeSize.isAccessibilitySize {
-                captureStatusPill
+                captureStatusHUD
+            }
+
+            if let captureQualityMessage {
+                Label(captureQualityMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.yellow)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .combine)
             }
 
             captureFaceProgress
@@ -362,7 +580,7 @@ public struct CubeScanFeatureView: View {
                         .font(.system(size: 18, weight: .semibold))
                     Text(
                         "\(CubeSingleFaceCaptureOrientation.standard(for: face).topEdgeFace.koreanColorName) 면이 위로 오게 두세요.\n" +
-                        "3×3 전체를 안내선에 맞추세요."
+                        "3×3 전체를 안내선 안에 두세요."
                     )
                         .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.74))
@@ -398,18 +616,23 @@ public struct CubeScanFeatureView: View {
                 Button(action: captureCurrentFace) {
                     ZStack {
                         Circle()
-                            .stroke(.white, lineWidth: 4)
+                            .stroke(.white.opacity(0.32), lineWidth: 4)
                             .frame(width: 74, height: 74)
                         Circle()
                             .fill(camera.availability == .ready ? Color.white : Color.gray)
                             .frame(width: 60, height: 60)
                         if camera.isCapturing {
                             ProgressView().tint(.black)
+                        } else {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 21, weight: .semibold))
+                                .foregroundStyle(.black)
                         }
                     }
                 }
                 .disabled(camera.availability != .ready || camera.isCapturing)
-                .accessibilityLabel(camera.isCapturing ? "색상 읽는 중" : "현재 면 촬영")
+                .accessibilityLabel("현재 면 직접 촬영")
+                .accessibilityHint("자동 촬영을 기다리지 않고 바로 촬영합니다.")
             }
         }
         .foregroundStyle(.white)
@@ -491,73 +714,93 @@ public struct CubeScanFeatureView: View {
     // MARK: - Review
 
     private var reviewExperience: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                reviewHeader
-                reviewStatusCard
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 16) {
+                    reviewHeader
+                    reviewStatusCard
 
-                ScanCubeNetView(
-                    facelets: displayFacelets,
-                    confidences: reviewModel.confidences,
-                    selectedFace: coreFace(for: reviewModel.selectedFace),
-                    highlightedIndices: diagnosticHighlightIndices,
-                    candidateIndices: diagnosticCandidateIndices,
-                    changedIndices: changedIndices,
-                    onSelectFace: selectCoreFace
-                )
+                    ScanCubeNetView(
+                        facelets: displayFacelets,
+                        confidences: reviewModel.confidences,
+                        selectedFace: coreFace(for: reviewModel.selectedFace),
+                        highlightedIndices: diagnosticHighlightIndices,
+                        candidateIndices: diagnosticCandidateIndices,
+                        changedIndices: changedIndices,
+                        onSelectFace: { face in
+                            selectCoreFace(face)
+                            withAnimation(.easeInOut(duration: 0.22)) {
+                                proxy.scrollTo("scan-face-editor", anchor: .top)
+                            }
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+
+                    netLegend
+
+                    if let diagnostic {
+                        diagnosticCard(diagnostic)
+                    }
+
+                    ScanFaceEditorView(
+                        face: coreFace(for: reviewModel.selectedFace),
+                        facelets: displayFacelets,
+                        confidences: reviewModel.confidences,
+                        selectedIndex: selectedStickerIndex,
+                        highlightedIndices: diagnosticHighlightIndices,
+                        candidateIndices: diagnosticCandidateIndices,
+                        canRetake: observations.count == CameraCubeFace.allCases.count,
+                        onSelect: {
+                            selectedStickerIndex = $0
+                            stickerEditFeedback = nil
+                        },
+                        onRetake: beginRetakeSelectedFace
+                    )
+                    .padding(14)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 18))
+                    .id("scan-face-editor")
+
+                    reviewActions
+                    colorCountSummary
+
+                    if let validatedDiagnosis {
+                        diagnosisCard(validatedDiagnosis)
+                    }
+
+                    reviewConfirmation
+                    primaryReviewButton
+                }
+                .padding(16)
+                .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
-
-                netLegend
-
-                if let diagnostic {
-                    diagnosticCard(diagnostic)
-                }
-
-                ScanFaceEditorView(
-                    face: coreFace(for: reviewModel.selectedFace),
-                    facelets: displayFacelets,
-                    confidences: reviewModel.confidences,
-                    selectedIndex: selectedStickerIndex,
-                    highlightedIndices: diagnosticHighlightIndices,
-                    candidateIndices: diagnosticCandidateIndices,
-                    canRetake: observations.count == CameraCubeFace.allCases.count,
-                    onSelect: { selectedStickerIndex = $0 },
-                    onRetake: beginRetakeSelectedFace
-                )
-                .padding(14)
-                .background(.background, in: RoundedRectangle(cornerRadius: 18))
-
-                reviewActions
-                colorCountSummary
-
-                if let validatedDiagnosis {
-                    diagnosisCard(validatedDiagnosis)
-                }
-
-                reviewConfirmation
-                primaryReviewButton
             }
-            .padding(16)
-            .frame(maxWidth: 560)
-            .frame(maxWidth: .infinity)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if selectedStickerIndex != nil {
-                ScanStickerPaletteView(
-                    selectedIndex: selectedStickerIndex,
-                    onChoose: setSelectedSticker
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial)
-                .overlay(alignment: .top) { Divider() }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let selectedStickerIndex {
+                    ScanStickerPaletteView(
+                        face: coreFace(for: reviewModel.selectedFace),
+                        selectedIndex: selectedStickerIndex,
+                        currentColor: displayFacelets.indices.contains(selectedStickerIndex)
+                            ? displayFacelets[selectedStickerIndex]
+                            : nil,
+                        feedback: stickerEditFeedback,
+                        onChoose: setSelectedSticker,
+                        onClose: {
+                            self.selectedStickerIndex = nil
+                            stickerEditFeedback = nil
+                        }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial)
+                    .overlay(alignment: .top) { Divider() }
+                }
             }
         }
     }
 
     private var reviewHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("전개도로 확인")
+            Text("색상 확인")
                 .font(.title2.bold())
 
             ViewThatFits(in: .horizontal) {
@@ -576,7 +819,7 @@ public struct CubeScanFeatureView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("기준 자세. 흰색 U면은 위, 초록색 F면은 앞")
 
-            Text("면을 누르면 크게 편집할 수 있어요.")
+            Text("촬영한 색을 실물 큐브와 대조하세요.\n확인할 면을 누르면 큰 편집기로 이동해요.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -586,14 +829,29 @@ public struct CubeScanFeatureView: View {
 
     private var reviewStatusCard: some View {
         let incompleteCount = reviewModel.stickers.lazy.filter { $0.face == nil }.count
-        let color: Color = isLegalCubeState ? .green : incompleteCount > 0 ? .orange : .red
-        let icon = isLegalCubeState ? "checkmark.shield.fill" : incompleteCount > 0 ? "square.grid.3x3.topleft.filled" : "exclamationmark.shield.fill"
-        let title = isLegalCubeState ? "실제 3×3이 될 수 있는 상태예요" : incompleteCount > 0 ? "미입력 \(incompleteCount)칸" : "확인할 조각이 있어요"
+        let lowConfidenceCount = lowConfidenceStickerIndices.count
+        let needsConfidenceReview = isLegalCubeState && lowConfidenceCount > 0
+        let color: Color = incompleteCount > 0 || needsConfidenceReview
+            ? .orange
+            : isLegalCubeState ? .green : .red
+        let icon = incompleteCount > 0
+            ? "square.grid.3x3.topleft.filled"
+            : needsConfidenceReview
+                ? "exclamationmark.magnifyingglass"
+                : isLegalCubeState ? "checkmark.shield.fill" : "exclamationmark.shield.fill"
+        let title = incompleteCount > 0
+            ? "미입력 \(incompleteCount)칸"
+            : needsConfidenceReview
+                ? "색상 \(lowConfidenceCount)칸을 확인하세요"
+                : isLegalCubeState ? "형식 검사를 통과했어요" : "자동 인식 오류를 확인하세요"
+        let detail = needsConfidenceReview
+            ? "주황 표시의 색이 비슷하게 측정됐어요.\n실물 큐브와 대조해 주세요."
+            : validationMessage
 
         return Label {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.subheadline.weight(.semibold))
-                Text(validationMessage)
+                Text(detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -607,18 +865,26 @@ public struct CubeScanFeatureView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var lowConfidenceStickerIndices: [Int] {
+        reviewModel.confidences.indices.filter { index in
+            !reviewModel.isCenter(index: index)
+                && reviewModel.stickers[index].face != nil
+                && reviewModel.confidences[index] < 0.55
+        }
+    }
+
     private var netLegend: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 14) {
                 legendItem(color: .red, text: "오류 위치")
                 legendItem(color: .orange, text: "후보·낮은 신뢰도")
-                legendItem(color: .blue, text: "재촬영으로 변경")
+                legendItem(color: .blue, text: "직접·재촬영 변경")
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 legendItem(color: .red, text: "오류 위치")
                 legendItem(color: .orange, text: "후보·낮은 신뢰도")
-                legendItem(color: .blue, text: "재촬영으로 변경")
+                legendItem(color: .blue, text: "직접·재촬영 변경")
             }
         }
         .font(.caption2)
@@ -751,7 +1017,10 @@ public struct CubeScanFeatureView: View {
 
     private func diagnosisCard(_ diagnosis: CubePracticeDiagnosis) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Label("다음 학습 단계", systemImage: "figure.mind.and.body")
+            Label(
+                purpose == .practiceResult ? "현재 상태 진단" : "다음 학습 단계",
+                systemImage: "figure.mind.and.body"
+            )
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(diagnosis.title).font(.headline)
@@ -785,15 +1054,41 @@ public struct CubeScanFeatureView: View {
 
     private var primaryReviewButton: some View {
         Button {
-            guard let validatedDiagnosis else { return }
-            onStartPractice(validatedDiagnosis)
+            guard let validatedState else { return }
+            onAccept(
+                ValidatedCubeScan(
+                    state: validatedState,
+                    orientation: .identity
+                )
+            )
         } label: {
-            Text("이 상태로 연습 시작")
+            Text(primaryReviewButtonTitle)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
         }
         .buttonStyle(.borderedProminent)
         .disabled(!didConfirmReview || !isLegalCubeState)
+        .accessibilityHint(primaryReviewButtonHint)
+    }
+
+    private var primaryReviewButtonTitle: String {
+        if purpose == .practiceResult {
+            return "이 상태로 비교"
+        }
+        if validatedDiagnosis?.isSolved == true {
+            return "일반 타이머로 돌아가기"
+        }
+        return "이 상태로 연습 시작"
+    }
+
+    private var primaryReviewButtonHint: String {
+        if purpose == .practiceResult {
+            return "촬영한 현재 상태를 연습 시작 상태와 비교합니다"
+        }
+        if validatedDiagnosis?.isSolved == true {
+            return "스캔을 닫고 일반 타이머로 돌아갑니다"
+        }
+        return "촬영한 전개도와 방향을 유지한 상태 연습을 시작합니다"
     }
 
     // MARK: - State actions
@@ -817,8 +1112,34 @@ public struct CubeScanFeatureView: View {
     }
 
     private func captureCurrentFace() {
+        captureCurrentFace(origin: .manual)
+    }
+
+    private func captureCurrentFace(
+        origin: CubeCaptureOrigin,
+        liveSignature: [CubeRGBSample]? = nil
+    ) {
         guard activeCaptureRequestID == nil, !camera.isCapturing else { return }
         guard let face = captureFlow.currentFace else { return }
+        let captureLiveSignature = liveSignature ?? camera.liveCaptureAssessment?.signature
+
+        if origin == .manual {
+            let assessment = camera.liveCaptureAssessment
+            guard autoCaptureGate.beginManualCapture(
+                at: assessment?.timestamp ?? currentCaptureTimestamp,
+                signature: assessment?.signature
+            ) else {
+                return
+            }
+            autoCaptureGuidance = .capturing
+            autoCaptureProgress = 1
+        } else {
+            guard autoCaptureGate.isCaptureInFlight else { return }
+            autoCaptureGuidance = .capturing
+            autoCaptureProgress = 1
+        }
+        captureQualityMessage = nil
+
         let isRetake = captureFlow.isRetaking
         let requestID = UUID()
         activeCaptureRequestID = requestID
@@ -826,8 +1147,21 @@ public struct CubeScanFeatureView: View {
         Task {
             do {
                 let analysis = try await camera.capture(face: face)
-                guard let observation = analysis.singleFaceObservation else {
+                guard let observation = CubeFinalStillValidator.validatedObservation(
+                    in: analysis,
+                    configuration: autoCaptureGate.configuration
+                ) else {
                     throw CubeCameraSessionError.guidedFaceExtractionFailed
+                }
+                let qualityReport = CubeFaceCaptureQualityEvaluator.evaluate(
+                    observation: observation,
+                    liveSignature: captureLiveSignature,
+                    requiresLiveAgreement: origin == .automatic
+                )
+                guard qualityReport.canAcceptFace else {
+                    throw CubeScanCaptureQualityError(
+                        unreliableCellIndices: qualityReport.unreliableCellIndices
+                    )
                 }
                 guard activeCaptureRequestID == requestID,
                       captureFlow.phase == .capture,
@@ -838,6 +1172,17 @@ public struct CubeScanFeatureView: View {
 
                 var candidateObservations = observations
                 candidateObservations[face] = observation
+                let capturedCenters: [CameraCubeFace: CubeRGBSample] =
+                    candidateObservations.reduce(into: [:]) { result, entry in
+                        guard entry.value.samples.indices.contains(4) else { return }
+                        result[entry.key] = entry.value.samples[4]
+                    }
+                try CubeBalancedFaceletClassifier.validateCenterSeparation(
+                    capturedCenters,
+                    requiresCompleteSet: false
+                )
+                var candidateCaptureFlow = captureFlow
+                candidateCaptureFlow.acceptCapture()
 
                 if isRetake {
                     try applyReconstruction(
@@ -845,26 +1190,87 @@ public struct CubeScanFeatureView: View {
                         replacingOnly: face
                     )
                     observations = candidateObservations
-                    captureFlow.acceptCapture()
+                    captureFlow = candidateCaptureFlow
                     camera.stop()
                 } else {
-                    observations = candidateObservations
-                    captureFlow.acceptCapture()
-                    if captureFlow.phase == .review {
+                    if candidateCaptureFlow.phase == .review {
                         try applyReconstruction(observations: candidateObservations)
+                    }
+                    observations = candidateObservations
+                    captureFlow = candidateCaptureFlow
+                    if captureFlow.phase == .review {
                         camera.stop()
                     }
                 }
+                autoCaptureGate.completeCapture(
+                    succeeded: true,
+                    at: currentCaptureTimestamp,
+                    signature: observation.samples
+                )
                 activeCaptureRequestID = nil
             } catch {
                 guard activeCaptureRequestID == requestID else { return }
                 activeCaptureRequestID = nil
-                captureFlow.recordCaptureFailure()
-                if captureFlow.phase == .review { camera.stop() }
-                captureError = (error as? LocalizedError)?.errorDescription
-                    ?? "안내선에 3×3 전체를 맞춘 뒤 같은 면을 다시 촬영해 주세요."
+                autoCaptureGate.completeCapture(
+                    succeeded: false,
+                    at: currentCaptureTimestamp
+                )
+                if origin == .manual {
+                    captureFlow.recordCaptureFailure()
+                    if captureFlow.phase == .review { camera.stop() }
+                    captureError = (error as? LocalizedError)?.errorDescription
+                        ?? "안내선에 3×3 전체를 맞춘 뒤 같은 면을 다시 촬영해 주세요."
+                } else {
+                    autoCaptureGuidance = .cooldown
+                    autoCaptureProgress = 0
+                    captureQualityMessage = (error as? LocalizedError)?.errorDescription
+                        ?? "면을 읽지 못했어요.\n같은 면을 다시 맞춰 주세요."
+                }
             }
         }
+    }
+
+    private func handleLiveCaptureAssessment(_ assessment: CubeLiveCaptureAssessment?) {
+        guard let assessment else {
+            autoCaptureGate.invalidateStability()
+            autoCaptureProgress = 0
+            return
+        }
+
+        guard scenePhase == .active,
+              captureFlow.phase == .capture,
+              !isEntryChoiceVisible,
+              camera.availability == .ready,
+              captureFlow.currentFace != nil else {
+            return
+        }
+
+        let update = autoCaptureGate.evaluate(
+            assessment,
+            canReserveCapture:
+                activeCaptureRequestID == nil &&
+                !camera.isCapturing
+        )
+        autoCaptureGuidance = update.guidance
+        autoCaptureProgress = update.stableFrameProgress
+
+        if update.shouldCapture {
+            captureCurrentFace(
+                origin: .automatic,
+                liveSignature: assessment.signature
+            )
+        }
+    }
+
+    private var currentCaptureTimestamp: Double {
+        camera.liveCaptureAssessment?.timestamp ?? ProcessInfo.processInfo.systemUptime
+    }
+
+    private func resetAutoCaptureGate() {
+        autoCaptureGate.reset()
+        autoCaptureGuidance = .alignCube
+        autoCaptureProgress = 0
+        captureQualityMessage = nil
     }
 
     private func applyReconstruction(
@@ -874,57 +1280,51 @@ public struct CubeScanFeatureView: View {
         let scan = try CubeSingleFaceletReconstructor.reconstruct(
             observations: Array(observations.values)
         )
-        let facesToApply = targetFace.map { [$0] } ?? CameraCubeFace.faceletOrder
-        var draft = reviewModel
-        var replacements: [CameraCubeFace: ([CubeScanSticker], [Double])] = [:]
+        var replacements: [CameraCubeFace: CubeScanFaceReplacement] = [:]
 
-        for face in facesToApply {
+        for face in CameraCubeFace.faceletOrder {
             guard let classified = scan.faceletsByFace[face], classified.count == 9 else {
                 throw CubeFaceletReconstructionError.missingFace(face)
             }
-            replacements[face] = (
-                classified.map { .face($0.colorFace) },
-                classified.map(\.confidence)
+            replacements[face] = CubeScanFaceReplacement(
+                stickers: classified.map { .face($0.colorFace) },
+                confidences: classified.map(\.confidence)
             )
         }
 
-        var newChangedIndices: Set<Int> = []
-        for face in facesToApply {
-            guard let replacement = replacements[face] else { continue }
-            let range = CubeScanReviewModel.indices(for: face)
-            let old = Array(draft.stickers[range])
-            try draft.replaceFace(
-                face,
-                stickers: replacement.0,
-                confidences: replacement.1
-            )
-            if targetFace != nil {
-                for (offset, pair) in zip(old, replacement.0).enumerated() where pair.0 != pair.1 {
-                    newChangedIndices.insert(range.lowerBound + offset)
-                }
-            }
-        }
+        let merged = try CubeScanReconstructionMerger.merge(
+            current: reviewModel,
+            replacements: replacements,
+            retakenFace: targetFace,
+            userEditedIndices: userEditedIndices
+        )
 
-        reviewModel = draft
-        changedIndices = newChangedIndices
+        reviewModel = merged.model
+        changedIndices = merged.changedIndices
+        userEditedIndices = merged.remainingUserEditedIndices
         selectedStickerIndex = nil
+        stickerEditFeedback = nil
         didConfirmReview = false
         validateDraft()
     }
 
     private func startManualReview() {
         activeCaptureRequestID = nil
+        resetAutoCaptureGate()
         camera.stop()
         observations.removeAll()
         reviewModel.reset()
         changedIndices.removeAll()
+        userEditedIndices.removeAll()
         selectedStickerIndex = nil
+        stickerEditFeedback = nil
         captureFlow.startManualReview()
         didConfirmReview = false
         validateDraft()
     }
 
     private func beginRetakeSelectedFace() {
+        resetAutoCaptureGate()
         guard observations.count == CameraCubeFace.allCases.count else {
             isResetConfirmationPresented = true
             return
@@ -932,6 +1332,7 @@ public struct CubeScanFeatureView: View {
         let face = reviewModel.selectedFace
         guard captureFlow.beginRetake(face: face) else { return }
         selectedStickerIndex = nil
+        stickerEditFeedback = nil
         if camera.availability == .ready {
             camera.start()
         } else {
@@ -941,6 +1342,7 @@ public struct CubeScanFeatureView: View {
 
     private func closeCapture() {
         activeCaptureRequestID = nil
+        resetAutoCaptureGate()
         if captureFlow.isRetaking {
             captureFlow.cancelRetake()
             camera.stop()
@@ -952,13 +1354,17 @@ public struct CubeScanFeatureView: View {
 
     private func resetScan() {
         activeCaptureRequestID = nil
+        resetAutoCaptureGate()
         observations.removeAll()
         reviewModel.reset()
         captureFlow.reset()
         selectedStickerIndex = nil
+        stickerEditFeedback = nil
         changedIndices.removeAll()
+        userEditedIndices.removeAll()
         diagnostic = nil
         validatedDiagnosis = nil
+        validatedState = nil
         isLegalCubeState = false
         didConfirmReview = false
         validationMessage = "여섯 면을 촬영한 뒤 전개도에서 확인해요."
@@ -972,6 +1378,7 @@ public struct CubeScanFeatureView: View {
     private func selectCoreFace(_ face: CoreCubeFace) {
         reviewModel.selectFace(cameraFace(for: face))
         selectedStickerIndex = nil
+        stickerEditFeedback = nil
     }
 
     private func setSelectedSticker(_ face: CoreCubeFace) {
@@ -982,24 +1389,17 @@ public struct CubeScanFeatureView: View {
             at: selectedStickerIndex
         )
         changedIndices.insert(selectedStickerIndex)
+        userEditedIndices.insert(selectedStickerIndex)
         didConfirmReview = false
         validateDraft()
-        self.selectedStickerIndex = nextEditableIndex(after: selectedStickerIndex)
-    }
-
-    private func nextEditableIndex(after index: Int) -> Int? {
-        let range = CubeScanReviewModel.indices(for: reviewModel.selectedFace)
-        let following = range.filter { $0 > index && !reviewModel.isCenter(index: $0) }
-        if let unfilled = following.first(where: { reviewModel.stickers[$0].face == nil }) {
-            return unfilled
-        }
-        return following.first
+        stickerEditFeedback = "\(face.scanKoreanColorName)으로 바꿨어요. 이 칸을 계속 확인하세요."
     }
 
     private func validateDraft() {
         reviewModel.clearHighlights()
         diagnostic = nil
         validatedDiagnosis = nil
+        validatedState = nil
         isLegalCubeState = false
 
         guard let faceletString = reviewModel.faceletStringURFDLB else {
@@ -1012,8 +1412,9 @@ public struct CubeScanFeatureView: View {
         do {
             let state = try CubeState(facelets: coreFacelets)
             isLegalCubeState = true
+            validatedState = state
             validatedDiagnosis = state.practiceDiagnosis
-            validationMessage = "색 수량, 엣지·코너 조합, 조각 방향이 모두 맞아요."
+            validationMessage = "색 수량과 조각 구성이 맞아요.\n실물 큐브와 같은지는 직접 대조해 주세요."
         } catch let error as CubeStateValidationError {
             let result = CubeStateDiagnostics.diagnostic(for: error, facelets: coreFacelets)
             diagnostic = result
@@ -1028,12 +1429,16 @@ public struct CubeScanFeatureView: View {
     private func focusFirstDiagnosticLocation(_ diagnostic: CubeStateDiagnostic) {
         guard let index = diagnostic.highlightedFaceletIndices.first else {
             selectedStickerIndex = nil
+            stickerEditFeedback = nil
             return
         }
         let faceIndex = index / CubeScanReviewModel.stickersPerFace
         guard CubeScanReviewModel.faceletOrder.indices.contains(faceIndex) else { return }
         reviewModel.selectFace(CubeScanReviewModel.faceletOrder[faceIndex])
-        if !reviewModel.isCenter(index: index) { selectedStickerIndex = index }
+        if !reviewModel.isCenter(index: index) {
+            selectedStickerIndex = index
+            stickerEditFeedback = nil
+        }
     }
 
     private func confidenceScore(for location: CubePieceLocation) -> Double {
@@ -1058,20 +1463,6 @@ public struct CubeScanFeatureView: View {
 
     private func cameraFace(for face: CoreCubeFace) -> CameraCubeFace {
         CameraCubeFace(rawValue: String(face.rawValue)) ?? .up
-    }
-
-    private func guideCenter(
-        for guide: CubeNormalizedGuideQuadrilateral,
-        in size: CGSize
-    ) -> CGPoint {
-        CGPoint(
-            x: size.width * CGFloat(
-                (guide.topLeft.x + guide.topRight.x + guide.bottomRight.x + guide.bottomLeft.x) / 4
-            ),
-            y: size.height * CGFloat(
-                (guide.topLeft.y + guide.topRight.y + guide.bottomRight.y + guide.bottomLeft.y) / 4
-            )
-        )
     }
 
     private func openSettings() {
@@ -1102,50 +1493,87 @@ private extension CubeStateValidationError {
     }
 }
 
-private struct GuideQuadrilateralShape: Shape {
+private struct GuideQuadrilateralOutlineShape: Shape {
     let quadrilateral: CubeNormalizedGuideQuadrilateral
 
     func path(in rect: CGRect) -> Path {
-        func point(_ normalized: CubeNormalizedGuidePoint) -> CGPoint {
-            CGPoint(
-                x: rect.minX + CGFloat(normalized.x) * rect.width,
-                y: rect.minY + CGFloat(normalized.y) * rect.height
-            )
-        }
-
         var path = Path()
-        path.move(to: point(quadrilateral.topLeft))
-        path.addLine(to: point(quadrilateral.topRight))
-        path.addLine(to: point(quadrilateral.bottomRight))
-        path.addLine(to: point(quadrilateral.bottomLeft))
+        path.move(to: quadrilateral.point(quadrilateral.topLeft, in: rect))
+        path.addLine(to: quadrilateral.point(quadrilateral.topRight, in: rect))
+        path.addLine(to: quadrilateral.point(quadrilateral.bottomRight, in: rect))
+        path.addLine(to: quadrilateral.point(quadrilateral.bottomLeft, in: rect))
         path.closeSubpath()
+        return path
+    }
+}
 
+private struct GuideInternalDividersShape: Shape {
+    let quadrilateral: CubeNormalizedGuideQuadrilateral
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
         for fraction in [1.0 / 3.0, 2.0 / 3.0] {
-            path.move(to: point(interpolate(
+            path.move(to: quadrilateral.point(quadrilateral.interpolate(
                 from: quadrilateral.topLeft,
                 to: quadrilateral.bottomLeft,
                 fraction: fraction
-            )))
-            path.addLine(to: point(interpolate(
+            ), in: rect))
+            path.addLine(to: quadrilateral.point(quadrilateral.interpolate(
                 from: quadrilateral.topRight,
                 to: quadrilateral.bottomRight,
                 fraction: fraction
-            )))
-            path.move(to: point(interpolate(
+            ), in: rect))
+            path.move(to: quadrilateral.point(quadrilateral.interpolate(
                 from: quadrilateral.topLeft,
                 to: quadrilateral.topRight,
                 fraction: fraction
-            )))
-            path.addLine(to: point(interpolate(
+            ), in: rect))
+            path.addLine(to: quadrilateral.point(quadrilateral.interpolate(
                 from: quadrilateral.bottomLeft,
                 to: quadrilateral.bottomRight,
                 fraction: fraction
-            )))
+            ), in: rect))
         }
         return path
     }
+}
 
-    private func interpolate(
+private struct GuideCornerRailsShape: Shape {
+    let quadrilateral: CubeNormalizedGuideQuadrilateral
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let corners = [
+            (quadrilateral.topLeft, quadrilateral.topRight, quadrilateral.bottomLeft),
+            (quadrilateral.topRight, quadrilateral.topLeft, quadrilateral.bottomRight),
+            (quadrilateral.bottomRight, quadrilateral.bottomLeft, quadrilateral.topRight),
+            (quadrilateral.bottomLeft, quadrilateral.bottomRight, quadrilateral.topLeft),
+        ]
+
+        for (corner, horizontalNeighbor, verticalNeighbor) in corners {
+            path.move(to: quadrilateral.point(
+                quadrilateral.interpolate(from: corner, to: horizontalNeighbor, fraction: 0.2),
+                in: rect
+            ))
+            path.addLine(to: quadrilateral.point(corner, in: rect))
+            path.addLine(to: quadrilateral.point(
+                quadrilateral.interpolate(from: corner, to: verticalNeighbor, fraction: 0.2),
+                in: rect
+            ))
+        }
+        return path
+    }
+}
+
+private extension CubeNormalizedGuideQuadrilateral {
+    func point(_ normalized: CubeNormalizedGuidePoint, in rect: CGRect) -> CGPoint {
+        CGPoint(
+            x: rect.minX + CGFloat(normalized.x) * rect.width,
+            y: rect.minY + CGFloat(normalized.y) * rect.height
+        )
+    }
+
+    func interpolate(
         from start: CubeNormalizedGuidePoint,
         to end: CubeNormalizedGuidePoint,
         fraction: Double

@@ -9,9 +9,9 @@
 
 | 항목 | 현재 코드에서 확인한 사실 | 선언 시 주의 |
 | --- | --- | --- |
-| 카메라 | 사용자가 `촬영해서 채우기`를 누른 뒤에만 후면 카메라 권한을 요청한다. 첫 화면에서 `전개도에 직접 입력`도 선택할 수 있다. 표준 6색 배치의 큐브를 `U, F, R, D, B, L` 순서와 표준 상단 방향에 맞춰 한 면씩 촬영한다. 기기 안에서 투시 보정·3×3 표본·센터 기준 색 분류와 54칸 후보 복원을 수행한다. | 임의 사진 detector나 모든 큐브·조명 조건의 완전 자동 인식으로 표현하지 않는다. 54칸 전개도 검토, 큰 면 편집, 면별 재촬영과 직접 입력이 제품 계약이다. |
+| 카메라 | 사용자가 `촬영해서 채우기`를 누른 뒤에만 후면 카메라 권한을 요청한다. 첫 화면에서 `전개도에 직접 입력`도 선택할 수 있다. 표준 6색 배치의 큐브를 `U, F, R, D, B, L` 순서와 표준 상단 방향에 맞춰 한 면씩 촬영한다. 라이브 가이드 정렬·노출·선명도·카메라 안정 조건이 일정 시간 유지되면 자동으로 고해상도 정지 사진을 촬영하고 최종 촬영본을 다시 검사한다. 수동 셔터와 면별 재촬영도 제공하며, 기기 안에서 투시 보정·3×3 표본·센터 기준 색 분류와 54칸 후보 복원을 수행한다. | 자동 촬영은 중앙 가이드에 대한 휴리스틱이다. 임의 사진 detector, 보장된 큐브 인식이나 모든 큐브·조명 조건의 완전 자동 인식으로 표현하지 않는다. 54칸 전개도 검토, 큰 면 편집, 수동 셔터·면별 재촬영과 직접 입력이 제품 계약이다. |
 | 사진·영상 | 캡처 JPEG와 라이브 프레임은 처리 경로에만 존재하며, 코드상 파일·사진 보관함·네트워크 업로드 API는 없다. Release archive의 연결 프레임워크와 소스 정적 감사에서도 광고·분석·업로드 경로를 찾지 못했다. | 동적 네트워크 검사와 실기기 확인 전까지는 이 사실을 최종 선언으로 확정하지 않는다. 미래의 진단/분석 SDK 추가 시 재평가한다. |
-| 상태 검증·연습 연결 | 사용자가 확인·수정한 `URFDLB` 54칸은 색 수량·센터·엣지/코너 유일성·방향 합·순열 parity를 검사한다. 오류 위치, 인식 색과 가능한 조각 색 조합을 안내하고 합법 상태만 단계 진단과 권장 회상 연습으로 연결한다. | 정확한 OLL/PLL 개별 케이스 matcher 또는 전체 해결기라고 표현하지 않는다. |
+| 상태 검증·연습 연결 | 사용자가 확인·수정한 합법 `URFDLB` 54칸과 identity U/F 방향을 전용 메모리 내 상태 연습에 함께 전달한다. 목표 우선·스크램블/생성 해법 없음·단조 활성 타이머·전체 화면 정지·단계별 개념 힌트·같은 방향 결과 재촬영과 목표 조건 비교를 제공한다. 완성 시작 상태는 일반 타이머로 돌아간다. | 정확한 OLL/PLL 개별 케이스 matcher, 전체 해결기 또는 `검증됨` 학습 증거라고 표현하지 않는다. 상태 연습은 일반 타이머·학습 통계에 기록하지 않는다. |
 | 로컬 데이터 | 학습 진행·솔브 기록·일일 목표는 `UserDefaults`의 버전된 JSON 스냅샷으로, 화면 모드 선택은 문자열 값으로 기기 안에 저장된다. 설정에서 이 데이터와 복구용 사본을 이중 확인 후 모두 삭제할 수 있으며 화면 모드는 시스템 기본값으로 돌아간다. | 계정, 동기화, 분석 SDK, 서버 백업은 현재 없다. 추가하면 개인정보·삭제·암호화·심사 메모를 다시 검토한다. |
 | 네트워크·계정 | `URLSession`, 로그인, 광고, 분석, CloudKit, StoreKit 사용은 현재 소스와 `Package.swift`에서 찾지 못했다. Release archive에는 외부 framework/Swift package가 없고 AdSupport도 연결되지 않았다. | 정적·바이너리 검사 결과다. 실기기 동적 네트워크 감사와 향후 SDK 추가 시 다시 확인한다. |
 | 출시 학습 UI | 실행형 항목 226개: 초급 10, 완결 2-Look 15, Full CFOP 119, COLL 40, Roux CMLL 42. 계열별 검색과 상태 검증된 후보의 HTM/ETM 비교를 제공한다. | `최단`은 동일 대표 시작 상태를 푸는 검증 후보 중 최단으로만 표현하고 전역 최적해로 홍보하지 않는다. |
@@ -27,16 +27,16 @@
 
 | 영역 | 상태 | Apple 요구와 현재 대조 | 출시 전 조치 |
 | --- | --- | --- | --- |
-| 최신 SDK·실기기 완성도 | **필수 — 환경·시뮬레이터·개발 서명 빌드·실기기 설치 완료, 실행 QA 미완료** | Xcode 26.6과 iOS 26.5 환경을 정합화했다. 최신 전체 `swift test`는 Swift Testing 139개와 XCTest 4개가 통과했고, strict concurrency·warnings-as-errors Simulator 빌드와 Apple Development 팀으로 서명한 generic iOS 빌드도 성공했다. 최신 개발 빌드는 iPhone 13 mini에 설치하고 기기 앱 목록에서 버전 1.0(빌드 1)을 확인했다. 자동 실행은 iOS가 개발자 프로파일 신뢰를 요구해 차단됐다. | App Store 업로드용 배포 archive와 Privacy Report를 만들고, 개발자 프로파일을 사용자 신뢰한 실제 iPhone에서 앱 실행·카메라 권한·6면 촬영·면별 재촬영·백그라운드 복귀·거부 후 직접 입력을 증빙한다. Simulator·generic iOS 빌드·설치 성공으로 대체하지 않는다. |
-| 카메라 권한 목적 문자열 | **필수 — Release archive 충족, 실기기 검증 필요** | `NSCameraUsageDescription`은 카메라 API 사용 시 필수이며, 사용 이유를 사용자에게 알려야 한다. archive의 `Info.plist`에 “촬영 가이드에 맞춘 큐브 6면의 색상을 기기 안에서 분석하고 연습 단계를 추천하기 위해 카메라를 사용합니다.”가 포함됨을 확인했다. | 권한 요청 직전 안내와 시스템 대화가 같은 목적을 정확히 말하는지, 거부 상태에서 핵심 학습·타이머가 계속 가능한지 실기기에서 검증한다. |
+| 최신 SDK·실기기 완성도 | **필수 — 환경·시뮬레이터·개발 서명 빌드·실기기 설치·실행 완료, 라이브 카메라 QA 부분 완료** | Xcode 26.6과 iOS 26.5 환경을 정합화해 2026년 4월 이후의 iOS 26 SDK 최소 요구를 충족한다. 최신 전체 `swift test`는 Swift Testing 226개와 XCTest 4개가 통과했고, strict concurrency·`GCC_TREAT_WARNINGS_AS_ERRORS=YES` iPhone 13 mini·iPhone 17 Pro Simulator 빌드, 정적 분석과 Apple Development 서명 generic iOS 빌드도 성공했다. 최신 앱은 iPhone 13 mini에 설치했으며 일반 실행과 직접 카메라 경로 실행을 확인했다. 사용자는 같은 기기의 실제 큐브 촬영이 확실히 빨라졌고 정상 인식된다고 확인했다. | App Store 업로드용 배포 archive와 Privacy Report를 만들고, iPhone 13 mini와 물리 iPhone 17 Pro에서 카메라 권한·자동/수동 6면 촬영·고해상도 재검사·중복 방지·면별 재촬영·백그라운드 복귀·거부 후 직접 입력을 반복 증빙한다. 자동 촬영 임계값과 색상 정확도를 기기·조명·재질별로 교정한다. 한 차례의 정성 확인이나 Simulator·순수 로직 테스트·generic iOS 빌드·프로세스 실행 성공으로 대체하지 않는다. |
+| 카메라 권한 목적 문자열 | **필수 — 최신 개발 서명 빌드·번들·실기기 재설치 확인 완료, 시스템 권한 대화 수동 확인 필요** | `NSCameraUsageDescription`은 카메라 API 사용 시 필수이며, 프로젝트 설정과 최신 Apple Development 서명 generic iOS 빌드의 `Info.plist`에서 “촬영 가이드에 맞춘 큐브 6면의 색상을 기기 안에서 분석해 연습 전후 상태를 비교하고 다음 단계를 제안하기 위해 카메라를 사용합니다.”를 확인했다. 해당 앱을 연결된 iPhone 13 mini에 다시 설치하고 정상 실행했다. | 업로드용 배포 archive의 `Info.plist`에서도 같은 문자열을 확인한다. 권한 요청 직전 안내와 시스템 대화가 같은 목적을 말하는지, 거부 상태에서 핵심 학습·타이머가 계속 가능한지 실기기에서 수동 검증한다. |
 | 개인정보 처리방침 | **필수 — 앱 내 링크·공개 HTTPS 확인 완료, App Store Connect 입력 전** | 지침 5.1.1은 App Store Connect와 앱 내부의 쉽게 접근 가능한 위치에 개인정보 처리방침 링크를 요구한다. 앱의 `오늘 → 설정`에 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html` 링크가 있고 같은 내용을 담은 `docs/privacy.html`이 있다. 공개 GitHub Pages의 지원 페이지와 개인정보 처리방침이 2026-07-31에 각각 HTTPS `200`을 반환함을 확인했다. | App Store Connect의 Privacy Policy URL에 같은 주소를 입력한다. 이후 페이지·앱·실제 바이너리의 처리·삭제 설명을 항상 같은 변경에서 갱신한다. |
 | App Privacy(영양성분표) | **필수 — archive 정적 감사 완료, 제출 답변·실기기 동적 감사 필요** | App Store 배포 앱은 App Store Connect에서 데이터 처리 관행을 설명해야 하며, 통합한 제3자 코드의 관행도 포함한다. Apple 정의에서 기기 밖으로 지속 접근 가능하게 전송하지 않는 온디바이스 처리·저장은 “수집”이 아니다. 현재 소스·의존성·Release archive에는 외부 SDK나 업로드 경로가 없어 `No, we do not collect data from this app`가 가능한 후보다. | 실기기 동적 네트워크 감사를 통과한 뒤 App Store Connect 답변을 확정한다. 원격 크래시/분석, 백업, 계정, 클라우드 동기화, 광고 또는 사진/기록 전송을 추가하면 해당 데이터 유형·목적·연결성·추적 여부를 다시 선언한다. |
 | Privacy Manifest·Required Reason API | **조건부 — archive 번들 포함·plist 검증 완료, Privacy Report 확인 필요** | Apple은 앱/SDK의 수집 데이터와 Required Reason API 사유를 `PrivacyInfo.xcprivacy`에 기록하도록 문서화한다. Release archive의 앱 번들 루트에서 유효한 plist를 확인했으며, 추적 false, 수집 데이터 없음, `UserDefaults` (`CA92.1`)와 system boot time (`35F9.1`) 사유를 선언한다. | 서명된 배포 archive의 Xcode Privacy Report에서 예상한 두 Required Reason API와 실제 API 사용이 일치하는지 확인한다. 새 API·SDK를 추가하면 manifest 및 App Privacy를 같은 변경에서 갱신한다. |
 | 제3자 SDK·코드 | **필수 — archive 포함물·학습 데이터 고지 감사 완료** | Apple은 앱에 포함된 모든 제3자 코드의 개인정보 관행에 개발자가 책임진다고 명시한다. Release archive에는 외부 Swift Package SDK가 없고 TNoodle JAR/JVM/AGPL 실행 코드나 `.jar`/`.class`도 없다. 사전 생성한 텍스트 카탈로그와 provenance manifest만 번들한다. | TNoodle 출력에 대한 최종 배포 판단은 출시 책임자가 유지한다. 학습 공식 데이터는 고정 MIT 원본과 번들 내 허가문으로 범위를 닫았다. 향후 SDK마다 버전, 라이선스, privacy manifest, Apple의 “required SDK” 목록 해당 여부와 바이너리 서명을 기록한다. |
 | 지식재산권·정직한 메타데이터 | **필수 — 학습 데이터 검수 완료, 최종 스토어 메타데이터 미완료** | 심사 지침 2.3.7은 고유하고 정확한 이름·키워드를, 2.3.9는 아이콘·스크린샷·미리보기 사용권을, 5.2.1은 허가 없는 제3자 저작물·상표·copycat·허위 표현 금지를 요구한다. | cubingapp·CubeDex의 고정 MIT 원본, 저작권·허가문, 변환 스크립트와 상태 검증을 보존한다. CubeTime·Rubik 공식 자료·WCA 화면은 벤치마크/참조일 뿐 복제하지 않는다. 스토어의 `최단`은 검수 후보 중 비교라고 한정하고, “공식 스크램블”, “완전 인식”, 전역 최적해를 주장하지 않는다. |
-| 앱 완성도·심사 메모 | **필수 — UI·archive 정적 검증 완료, 실기기 최종 검증 필요** | 지침 2.1은 placeholder·임시 콘텐츠를 제거한 최종 버전을, 2.2는 데모·베타·trial 대신 TestFlight 사용을, 2.3은 실제 핵심 경험과 일치하는 메타데이터를 요구한다. 출시 학습 UI는 권리·표기·상태 적용을 검수한 226개 실행형 항목과 범위가 명시된 후보 길이 비교를 표시한다. 연습 탭의 타이머는 별도 화면 이동이나 스크롤 없이 스크램블·검산용 전개도·타이머 조작을 한 화면에 표시한다. iPhone SE 3세대 Simulator에서 가장 큰 시스템 접근성 글자 크기를 요청한 상태의 한 화면 레이아웃을 확인했고 Release archive 포함물도 검사했다. | 아래 §6 심사 메모를 실제 기능과 일치시켜 입력한다. 카메라를 `베타`나 범용 detector로 홍보하지 않고 지원 조건·수동 확인·온디바이스 처리·실기기 검증 범위를 분명히 한다. 실제 iPhone과 TestFlight에서 빈 화면·미구현 동작·크래시가 없는지 최종 확인한다. |
+| 앱 완성도·심사 메모 | **필수 — UI·archive 정적 검증 완료, 실기기 최종 검증 필요** | 지침 2.1은 placeholder·임시 콘텐츠를 제거한 최종 버전을, 2.2는 데모·베타·trial 대신 TestFlight 사용을, 2.3은 실제 핵심 경험과 일치하는 메타데이터를 요구한다. 출시 학습 UI는 권리·표기·상태 적용을 검수한 226개 실행형 항목과 범위가 명시된 후보 길이 비교를 표시한다. 연습 탭의 타이머는 별도 화면 이동이나 스크롤 없이 스크램블·검산용 전개도·타이머 조작을 한 화면에 표시한다. 상태 연습 브리핑·일시정지·결과 레이아웃은 iPhone 13 mini·iPhone 17 Pro Simulator에서 잘림 없이 확인했다. iPhone SE 3세대 Simulator에서 가장 큰 시스템 접근성 글자 크기를 요청한 일반 타이머 레이아웃도 확인했고 Release archive 포함물도 검사했다. | 아래 §6 심사 메모를 실제 기능과 일치시켜 입력한다. 카메라를 `베타`나 범용 detector로 홍보하지 않고 지원 조건·수동 확인·온디바이스 처리·실기기 검증 범위를 분명히 한다. 실제 iPhone과 TestFlight에서 빈 화면·미구현 동작·크래시가 없는지 최종 확인한다. |
 | 제품 페이지·지원·연령 등급 | **필수 — 미완료** | 이름/부제목/설명/스크린샷/미리보기/키워드를 준비해야 하며, 지원 연락처와 개인정보 처리방침은 모든 앱에 필요하다. 연령 등급 질문지는 필수이고, 미등급 앱은 App Store에 게시할 수 없다. | 한국어 우선 스크린샷은 실제 앱의 226개 학습 카탈로그·후보 길이 비교, 타이머·통계, 가이드 정렬 카메라·수동 흐름만 보여 준다. 전역 최단해·범용 사진 인식을 암시하지 않는다. 지원 URL/이메일을 공개하고 연령 등급 질문지를 실제 콘텐츠대로 작성한다. |
-| 접근성·Accessibility Nutrition Labels | **조건부 — 타이머 제한적 레이아웃 확인, 전체 Larger Text·보조기술 검증 전** | Apple은 App Store Connect에서 VoiceOver·Voice Control·Larger Text 등의 지원을 제품 페이지에 자발적으로 표시하도록 제공하며, 표시 전 평가 기준 검토를 요구한다. 시스템 content size를 `accessibility-extra-extra-extra-large`로 요청해도 타이머 계측기 하위 뷰는 `.dynamicTypeSize(.xSmall ... .accessibility1)`로 Accessibility 1까지만 확대한다. 이 제한 아래 iPhone SE 3세대 Simulator에서 스크램블 두 줄 전체, TNoodle 비공식 문구, 전개도, 타이머와 주요 버튼이 스크롤 없이 한 화면에 보이는 것을 확인했다. 이는 타이머 화면의 의도적인 상한과 시각적 레이아웃 점검이며, 전체 앱의 Larger Text 완전 지원이나 VoiceOver·Voice Control·실기기 접근성 검증 증거가 아니다. | 타이머의 글자 크기 상한이 정보 접근성을 저해하지 않는지 실제 기기에서 평가하고, VoiceOver, Dynamic Type, 충분한 대비, 스위치/음성 제어로 타이머 시작·정지·기록 수정·카메라 대체 흐름을 점검한다. 통과한 기능만 App Accessibility에 선언하고, 남은 제약은 접근성 URL에 공개한다. |
+| 접근성·Accessibility Nutrition Labels | **조건부 — 타이머 제한적 레이아웃 확인, 전체 Larger Text·보조기술 검증 전** | Apple은 App Store Connect에서 VoiceOver·Voice Control·Larger Text 등의 지원을 제품 페이지에 자발적으로 표시하도록 제공하며, 표시 전 평가 기준 검토를 요구한다. 시스템 content size를 `accessibility-extra-extra-extra-large`로 요청해도 타이머 계측기 하위 뷰는 `.dynamicTypeSize(.xSmall ... .accessibility1)`로 Accessibility 1까지만 확대한다. 이 제한 아래 iPhone SE 3세대 Simulator에서 스크램블 두 줄 전체, TNoodle 비공식 문구, 전개도, 타이머와 주요 버튼이 스크롤 없이 한 화면에 보이는 것을 확인했다. 이는 타이머 화면의 의도적인 상한과 시각적 레이아웃 점검이며, 전체 앱의 Larger Text 완전 지원이나 VoiceOver·Voice Control·실기기 접근성 검증 증거가 아니다. | 타이머의 글자 크기 상한이 정보 접근성을 저해하지 않는지 실제 기기에서 평가한다. 카메라는 정렬·흔들림·선명도·노출·안정화·촬영 중·장면 전환 상태를 색에만 의존하지 않고 전달하고, VoiceOver가 프레임마다 과도하게 반복 낭독하지 않는지 검증한다. 수동 셔터·면별 재촬영·직접 입력을 VoiceOver, Dynamic Type, 충분한 대비와 스위치/음성 제어로 완료하는지 점검한다. 통과한 기능만 App Accessibility에 선언하고, 남은 제약은 접근성 URL에 공개한다. |
 | 계정 삭제 | **해당 없음 — 현 구현** | Apple은 **계정 생성을 지원하는 앱**에 앱 안에서 계정 삭제 시작 기능을 요구한다. 현 코드에는 계정 생성·로그인·서버 사용자 데이터가 없다. | 계정, Sign in with Apple, 소셜 로그인, 동기화 프로필을 도입하는 같은 릴리스에서 앱 내 계정 삭제(및 보존 법적 근거/기한 안내)를 구현·테스트하고 Privacy Policy/App Privacy를 갱신한다. |
 | 로컬 데이터 삭제·Privacy Choices | **조건부 — 앱 내 삭제 구현** | 현 로컬 전용 설계에 Apple의 “계정 삭제” 의무는 적용되지 않고 Privacy Choices URL은 선택 사항이다. 앱은 모든 로컬 학습·솔브 데이터와 복구용 사본의 범위를 설명하고 이중 확인 후 삭제한다. 개인정보 처리방침에도 같은 경로와 되돌릴 수 없음을 명시한다. | 삭제 범위와 재실행 후 초기 상태를 릴리스 빌드에서 확인한다. 계정·원격 데이터가 생기면 앱 내 계정 삭제와 원격 삭제/보존 정책, Privacy Choices URL을 함께 재검토한다. |
 | 암호화 수출 규정 | **조건부 — App Store Connect에서 판정 필요** | 암호화를 사용·접근·포함·구현하는 앱은 업로드/테스트/배포 시 export compliance 요구 사항을 판정해야 한다. Apple은 앱별 질문으로 문서 필요 여부를 결정한다. 현재 소스에서 독자 암호화·네트워크 전송은 확인하지 못했다. | 각 릴리스에서 App Store Connect export compliance 질문에 사실대로 답한다. 문서 불필요/면제라면 해당 Info.plist 선언을 설정한다. HTTPS, Keychain, TNoodle 또는 SDK 추가 여부를 포함해 최종 바이너리 기준으로 재판정하며, 추측으로 면제를 주장하지 않는다. |
@@ -46,7 +46,7 @@
 
 ### 반드시 일치해야 하는 사용자 설명
 
-1. **권한 직전 화면:** “표준 6색 큐브의 여섯 면을 안내선과 지정된 위쪽 방향에 맞춰 촬영하고 54칸 후보를 기기 안에서 분석한다. 사진을 저장하거나 전송하지 않으며 사용자가 전개도에서 결과를 확인한다.”
+1. **권한 직전 화면:** “표준 6색 큐브의 여섯 면을 안내선과 지정된 위쪽 방향에 맞춘다. 정렬과 촬영 상태가 일정 시간 안정되면 자동으로 촬영하며 수동 셔터도 사용할 수 있다. 사진은 54칸 후보를 만들기 위해 기기 안에서만 처리하고 저장하거나 전송하지 않으며 사용자가 전개도에서 결과를 확인한다.”
 2. **시스템 권한 문구:** Info.plist의 실제 카메라 목적 문자열과 위 기능을 일치시킨다.
 3. **제품 페이지/개인정보 처리방침:** 사진·프레임의 처리 위치, 저장 여부, 네트워크 전송 여부, 수동 대체 흐름, 로컬 학습·솔브 기록의 보존/삭제 범위를 일치시킨다.
 4. **심사 메모:** 아래 §6처럼 가이드 정렬 방식, 표준 6색 전제, 수동 확인과 범용 detector가 아닌 한계를 밝힌다.
@@ -56,6 +56,8 @@
 - [x] 앱의 개인정보 및 데이터 화면에 정책 URL과 모든 로컬 데이터 삭제 흐름이 있다.
 - [x] GitHub Pages의 지원 페이지와 개인정보 처리방침 URL이 공개 HTTPS에서 `200`을 반환한다.
 - [ ] 카메라 승인/거부/제한/재승인, 앱 백그라운드·복귀, 촬영 실패에서 크래시 없이 수동 경로가 동작한다.
+- [ ] 자동 촬영 전 라이브 gate와 촬영 후 고해상도 재검사가 각각 동작하고, 성공 뒤 같은 장면 중복 촬영을 막으며, 수동 셔터와 면별 재촬영이 gate 실패에서도 동작한다.
+- [ ] iPhone 13 mini와 iPhone 17 Pro 물리 기기에서 정렬·노출·선명도·카메라 안정·dwell·장면 변화 임계값과 상태 피드백 빈도를 교정한다.
 - [ ] 라이브 프레임·JPEG·원본 사진이 Photos, 앱 Documents/Library, 로그, 크래시 리포트, 네트워크 요청에 남지 않는다.
 - [x] 무서명 Release archive의 번들 루트에 유효한 `PrivacyInfo.xcprivacy`가 있다.
 - [ ] 서명된 배포 archive의 Xcode Privacy Report에 예상한 두 Required Reason API만 나타난다.
@@ -73,9 +75,11 @@
 ### 6면 가이드 정렬 54칸 복원·cubie parity
 
 - 현재 기능은 고정 안내선, 표준 6색 배치와 `U, F, R, D, B, L` 촬영 순서를 전제로 한다. 위쪽 인접 면은 각각 `B, U, U, F, U, U`다. 임의 사진 속 큐브를 검색하는 detector가 아니다.
+- 라이브 정렬·노출·선명도·카메라 안정 상태가 연속 프레임과 최소 유지 시간을 충족하면 자동 촬영하지만, 이는 가이드 안의 촬영 준비 상태를 판단하는 휴리스틱일 뿐 큐브 객체 검출이나 인식 성공 보장이 아니다. 최종 고해상도 사진도 다시 검사하며 수동 셔터와 면별 재촬영을 유지한다.
+- 성공한 면과 같은 장면에서는 다음 자동 촬영을 잠그고 정렬 상실이나 충분한 장면 변화 뒤에만 다시 준비한다. 이 처리는 모두 기기 안에서 이뤄지며 라이브 평가값·장면 서명·사진을 저장하거나 전송하지 않는다.
 - 54칸은 자동 **후보**이며 셀별 신뢰도, 전체 전개도, 선택한 면의 큰 편집기, 면별 재촬영과 직접 입력을 함께 제공한다. 모든 조명·반사·가림·재질에서 무수정 인식을 보장하지 않는다.
 - `CubeState`와 `CubeStateDiagnostics`는 색 수량, 고정 센터, 12개 엣지·8개 코너의 유일성, corner orientation, edge flip과 corner/edge permutation parity를 검사한다. 오류 위치와 가능한 조각 색 조합을 안내하지만 촬영 색 분류의 실기기 정확도를 증명하지는 않는다.
-- 상태 진단은 크로스·첫 층·두 번째 층·OLL·PLL·완성의 연습 단계를 추천하며 정확한 OLL/PLL 개별 케이스나 전체 해법을 생성하지 않는다.
+- 상태 진단은 크로스·첫 층·두 번째 층·OLL·PLL·AUF·완성의 다음 목표를 정한다. 미완성 합법 상태는 촬영한 54칸과 U/F 방향 그대로 전용 상태 연습에 전달하고, 완성 상태는 일반 타이머로 돌아간다. 정확한 OLL/PLL 개별 케이스나 전체 해법은 생성하지 않는다.
 
 ### 출시 커리큘럼
 
@@ -90,9 +94,9 @@
 1. 앱을 실행하면 계정·로그인이 없다.
 2. `내 큐브 확인` 첫 화면에서 `촬영해서 채우기`와 `전개도에 직접 입력`을 스크롤 없이 선택할 수 있다. 전자를 누를 때만 카메라 접근을 요청한다.
 3. 카메라를 거부해도 `전개도에 직접 입력`을 탭해 학습·타이머를 계속 사용할 수 있다.
-4. 카메라 프레임과 촬영 JPEG는 표준 6색 큐브의 `U, F, R, D, B, L` 면에서 54칸 후보를 만들기 위해 기기 안에서 일시 처리하며 저장·업로드하지 않는다. **이 문장은 릴리스 네트워크/파일 감사가 통과한 경우에만 제출한다.**
-5. 사용자는 54칸 전개도와 큰 면 편집기에서 결과를 확인하고, 면별 재촬영 또는 직접 입력으로 수정한다. 앱은 색 수량·엣지/코너 구성·방향·순열 parity를 진단하고 합법 상태에서 다음 회상 연습 단계를 추천한다.
-6. 카메라는 임의 사진 detector가 아니며 전체 해결 동작을 생성하지 않는다. 출시 학습 범위는 초급·완결 2-Look·Full CFOP·COLL·Roux CMLL의 실행형 항목 226개다.
+4. 카메라 프레임에서 가이드 정렬·노출·선명도·카메라 안정 상태와 장면 변화를 평가하고, 조건이 유지되면 자동으로 고해상도 정지 사진을 촬영해 다시 검사한다. 라이브 평가값·장면 서명과 촬영 JPEG는 표준 6색 큐브의 `U, F, R, D, B, L` 면에서 54칸 후보를 만들기 위해 기기 안에서 일시 처리하며 저장·업로드하지 않는다. **이 문장은 릴리스 네트워크/파일 감사가 통과한 경우에만 제출한다.**
+5. 자동 촬영 외에도 수동 셔터를 사용할 수 있다. 사용자는 54칸 전개도를 확인·수정한다. 미완성 합법 상태는 검토한 전개도와 U/F 방향 그대로 목표 중심 상태 연습을 시작하고, 완성 상태는 일반 타이머로 돌아간다. 상태 연습은 스크램블·해결 동작·일반 기록을 만들지 않으며 같은 방향의 결과 스캔으로 목표 진행만 비교한다.
+6. 카메라는 중앙 가이드에 맞춘 촬영 휴리스틱이지 임의 사진 detector나 보장된 큐브 인식기가 아니며 정확한 OLL/PLL case matcher나 전체 해결 동작을 생성하지 않는다. `검증됨` 라벨도 아직 사용하지 않는다. 출시 학습 범위는 초급·완결 2-Look·Full CFOP·COLL·Roux CMLL의 실행형 항목 226개다.
 
 **심사 연락처**
 
@@ -111,8 +115,8 @@
 
 ### 2026-07-31 로컬 검증 증거
 
-- 최신 6면 스캔 변경을 포함한 전체 `swift test`는 Swift Testing 139개와 XCTest 4개가 통과했다. strict concurrency·warnings-as-errors Simulator 빌드와 Apple Development 팀으로 서명한 generic iOS 빌드도 성공했다.
-- 최신 개발 빌드는 연결된 iPhone 13 mini에 설치했고 버전 1.0(빌드 1)을 확인했다. 자동 실행은 iOS가 개발자 프로파일 신뢰를 요구해 차단됐다. 사용자 신뢰 후 앱 실행, 카메라 권한, 6면 실촬영, 조명·반사·재질별 인식률과 면별 재촬영 복구를 검증해야 한다. 설치 성공과 Simulator·generic iOS 빌드는 라이브 카메라 품질의 증거가 아니다.
+- 최신 6면 스캔 변경을 포함한 전체 `swift test`는 Swift Testing 226개와 XCTest 4개가 통과했다. strict concurrency·`GCC_TREAT_WARNINGS_AS_ERRORS=YES` iPhone 13 mini·iPhone 17 Pro Simulator 빌드, `xcodebuild analyze`와 Apple Development 팀으로 서명한 generic iOS 빌드도 성공했다. 최신 편집기·촬영 가이드와 상태 연습 브리핑·일시정지·결과 레이아웃은 두 시뮬레이터에서 잘림이 없음을 확인했다.
+- 최신 개발 빌드는 연결된 iPhone 13 mini에 설치했으며 일반 실행과 직접 카메라 경로 실행을 다시 확인했다. 사용자는 같은 기기의 실제 큐브 촬영이 이전보다 확실히 빨라졌고 정상 인식된다고 확인했다. 물리 기기의 상태 연습 전체 상호작용과 조명·반사·재질별 광범위 정확도 매트릭스, 반복 인식률과 면별 재촬영 복구는 별도로 검증해야 한다. 한 차례의 정성 확인, 설치·프로세스 실행 성공과 Simulator·generic iOS 빌드는 전체 라이브 카메라 품질의 증거가 아니다.
 - 학습·복습·설정 문구를 짧은 행동 단위로 재작성하고, 공식 화면은 WCA Article 12의 `R`, `R'`, `R2` 표기를 그대로 유지했다. Release 테스트는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-copy-notation-test.log`), strict concurrency complete·warnings-as-errors Simulator 빌드가 성공했다(`/tmp/cubecoach-copy-notation-build.log`). generic iOS 무서명 Release archive도 Store validation을 통과했다(`/tmp/CubeCoachCopyNotationArchive.dW62Wi/CubeCoach.xcarchive`, `/tmp/cubecoach-copy-notation-archive.log`).
 - 단색 와이어 큐브 아이콘으로 단순화한 뒤 기본·다크·틴트 1024×1024 자산과 60×60 축소본에서 형태를 확인했고, 모든 픽셀의 alpha가 255임을 검사했다. Release 테스트는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했고(`/tmp/cubecoach-simple-icon-test.log`), 최종 Asset Catalog를 포함한 strict concurrency complete·warnings-as-errors Simulator 빌드가 성공했다(`/tmp/cubecoach-simple-icon-build.log`). generic iOS 무서명 Release archive도 Store validation을 통과했다(`/tmp/CubeCoachSimpleIconArchive.1e3V4D/CubeCoach.xcarchive`, `/tmp/cubecoach-simple-icon-archive.log`).
 - 앱 내부 화면 모드는 `시스템`, `라이트`, `다크` 세 가지이며 `UserDefaults`에 로컬 저장된다. iPhone 13 mini에서 기기 라이트·앱 다크, iPhone 17 Pro에서 기기 다크·앱 라이트 강제 조합을 확인했다(`/tmp/cubecoach-appearance/13mini-dark-argument.png`, `/tmp/cubecoach-appearance/17pro-light-argument.png`). 최종 strict concurrency complete·warnings-as-errors Simulator 빌드가 성공했고(`/tmp/cubecoach-appearance-build.log`), Release 테스트는 Swift Testing 116개와 XCTest 4개가 실패 없이 통과했다(`/tmp/cubecoach-appearance-test.log`). generic iOS 무서명 Release archive도 Store validation을 통과했다(`/tmp/CubeCoachAppearanceFinalArchive.5male6/CubeCoach.xcarchive`, `/tmp/cubecoach-appearance-archive.log`).
@@ -139,7 +143,7 @@
 - 최종 archive 카탈로그 감사: TNoodle-WCA 1.2.3 manifest, 32,768줄/32,768개 고유 카탈로그와 SHA-256 `b90257db20f387f94ef43083be6635430b9fc62c865023b6fe899653e3847d89` 확인.
 - 최종 archive 실행 파일: arm64, 외부 SDK/framework·AdSupport·`.jar`·`.class` 없음.
 - 공개 저장소 `https://github.com/KimDaehyeon6873/cube-coach-ios`, 지원 페이지 `https://kimdaehyeon6873.github.io/cube-coach-ios/`, 개인정보 처리방침 `https://kimdaehyeon6873.github.io/cube-coach-ios/privacy.html`이 HTTPS `200`을 반환함을 확인했다.
-- 최신 개발 빌드는 연결된 iPhone 13 mini에 설치하고 버전 1.0(빌드 1)을 확인했다. 개발자 프로파일 신뢰 전이라 자동 실행이 차단됐으며 물리 iPhone 카메라 QA는 아직 실행하지 못했다.
+- 최신 개발 빌드는 연결된 iPhone 13 mini에 설치했고 일반 실행과 직접 카메라 경로 실행을 확인했다. 개발자 프로파일 신뢰와 기기 잠금 차단은 해소됐지만 물리 iPhone의 실제 큐브 색상 정확도 QA는 아직 완료하지 못했다.
 
 - 전체 공식 카탈로그 변경의 Release + strict concurrency complete `swift test`는 Swift Testing 117개와 XCTest 4개가 모두 통과했다(`/tmp/cubecoach-full-catalog-test.log`). 트랙별 개수, 226개 전체 파싱·상태 적용, 대체 후보의 동일 대표 상태 해결, wide/slice move 역원·4회전 항등을 검사한다.
 - warnings-as-errors·strict concurrency complete iPhone 17 Pro Simulator 빌드가 성공했다(`/tmp/cubecoach-full-catalog-build.log`). iPhone 13 mini 다크와 iPhone 17 Pro 라이트에서 학습 첫 화면을, 13 mini에서 계열별 공식 목록과 상세 전개도를 확인했다(`/tmp/cubecoach-full-catalog-ui/13mini-learn4.png`, `/tmp/cubecoach-full-catalog-ui/17pro-learn4.png`, `/tmp/cubecoach-full-catalog-ui/13mini-stage.png`, `/tmp/cubecoach-full-catalog-ui/13mini-case2.png`). 이는 시뮬레이터 레이아웃 증거이며 실기기 카메라·터치 지연 검증을 대신하지 않는다.
@@ -173,6 +177,6 @@
 
 ## 9. 결론
 
-현 프로토타입은 Xcode 26.6 환경 정합, 전체 테스트 139개와 XCTest 4개 통과, strict Simulator 빌드와 개발 팀 서명 generic iOS 빌드, 구체적인 카메라 목적 문자열, 6면 정면 촬영·54칸 전개도 검토·면별 재촬영·직접 입력·cubie 진단, TNoodle 연습 스크램블, 로컬 우선 설계와 Privacy Manifest, 앱 내 개인정보 처리방침 링크와 전체 로컬 데이터 삭제를 갖췄다.
+현 프로토타입은 Xcode 26.6 환경 정합, Swift Testing 226개와 XCTest 4개 통과, iPhone 13 mini·iPhone 17 Pro strict Simulator 빌드·정적 분석·개발 팀 서명 generic iOS 빌드, 구체적인 카메라 목적 문자열, 6면 정면 촬영·촬영 후 색 품질 검사·센터 분리·색당 9칸 전역 분류·54칸 전개도 검토·면별 재촬영·직접 입력·cubie 진단, TNoodle 연습 스크램블, 로컬 우선 설계와 Privacy Manifest, 앱 내 개인정보 처리방침 링크와 전체 로컬 데이터 삭제를 갖췄다.
 
-아직 **지원 연락처, App Store 업로드용 배포 archive와 Privacy Report, 물리 iPhone의 앱 실행·라이브 카메라 검증, 최종 App Privacy·암호화 판정, 콘텐츠·TNoodle 권리 감사와 App Store Connect 메타데이터**가 남아 있어 심사 제출 준비 완료는 아니다. App Review 2.1·2.2·2.3에 맞춰 임시·미출시 기능을 제품처럼 노출하지 않고, 가이드 정렬 스캔·유한 연습 스크램블·출시 커리큘럼의 한계를 정확히 설명해야 한다.
+아직 **지원 연락처, App Store 업로드용 배포 archive와 Privacy Report, 물리 iPhone의 상태 연습 전체 상호작용·다중 조명/재질 라이브 카메라 반복 검증과 물리 iPhone 17 Pro 확인, 최종 App Privacy·암호화 판정, 콘텐츠·TNoodle 권리 감사와 App Store Connect 메타데이터**가 남아 있어 심사 제출 준비 완료는 아니다. App Review 2.1·2.2·2.3에 맞춰 임시·미출시 기능을 제품처럼 노출하지 않고, 가이드 정렬 스캔·유한 연습 스크램블·출시 커리큘럼의 한계를 정확히 설명해야 한다.

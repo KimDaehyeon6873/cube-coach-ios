@@ -26,7 +26,7 @@
 
 앱 조립의 기본 탭은 `Today`, `Learn`, `Practice`, `Records` 네 개다. `Features/Trainer`는 별도 사용자 영역이 아니라 오늘 또는 학습 상세에서 여는 `복습` 구현이다. 학습 상세는 모든 단서와 stepper를 공개하되 열람만으로 `ReviewAttempt`를 만들지 않는다. 복습에서 실제 큐브 수행과 기대 상태 비교를 완료한 경우에만 시도 기록을 저장한다. H0–H5와 준비 방식 enum은 내부 도메인에 남기고 UI 문자열로 노출하지 않는다.
 
-현재 카메라는 임의 사진 detector가 아니라 고정 안내선에 맞춘 표준 6색 큐브 전용 입력이다. `U, F, R, D, B, L` 여섯 면을 정면으로 촬영하고 각 면의 3×3 내부를 표본화한 뒤, 여섯 센터를 기준으로 색을 분류해 54칸 후보와 셀별 신뢰도를 만든다. 사용자는 전개도와 선택한 면의 큰 편집기에서 결과를 검토하고, 면별 재촬영 또는 직접 입력으로 수정한다. 확인한 `URFDLB` 상태는 센터·색 수량·엣지/코너 유일성·방향 합·순열 parity 검사를 통과해야 단계 진단과 대표 연습 추천으로 연결된다. 추천 연습의 전개도는 촬영한 54칸 상태 자체가 아니라 진단 단계에 대응하는 내장 연습 상태다. 최신 개발 빌드는 iPhone 13 mini에 설치했지만 개발자 프로파일 신뢰 전이라 자동 실행이 차단됐다. 사용자 신뢰 후 최신 라이브 카메라 흐름과 조명·반사·재질별 정확도 검증이 남았다.
+현재 카메라는 임의 사진 detector가 아니라 고정 안내선에 맞춘 표준 6색 큐브 전용 입력이다. `U, F, R, D, B, L` 여섯 면을 정면으로 촬영하고 각 면의 3×3 내부를 표본화한 뒤, 센터 분리 검사와 색당 9칸 전역 배정으로 54칸 후보와 셀별 신뢰도를 만든다. 사용자는 전개도와 선택한 면의 큰 편집기에서 결과를 검토하고, 면별 재촬영 또는 직접 입력으로 수정한다. 확인한 `URFDLB` 상태는 센터·색 수량·엣지/코너 유일성·방향 합·순열 parity 검사를 통과해야 한다. 미완성 상태는 identity U/F 방향과 함께 `ValidatedCubeScan`으로 묶여 전용 메모리 내 `CubeStatePracticeSessionModel`에 원자 전달되고, 완성 상태는 일반 타이머로 돌아간다. 최신 개발 빌드는 iPhone 13 mini에 설치했고 일반 실행과 카메라 진입 경로 실행도 확인했다. 사용자는 같은 기기에서 촬영 속도와 정상 인식이 확실히 개선됐다고 확인했다. 실제 조명·반사·재질별 반복 정확도 검증은 남아 있다.
 
 연습 탭 자체가 스크램블·검산 전개도·타이머의 직접 루트이며 스캔은 툴바의 보조 진입이다. `TodayView`의 CTA는 navigation push 대신 탭 selection을 바꾼다. `TimerFeatureView`는 `ScrollView` 없이 사용 가능 높이에 맞춘 인라인 내비게이션, 모드 picker, TNoodle 표기, 축약 54-facelet 전개도와 U/F 기준, 타이머·주요 조작을 한 viewport에 둔다. WCA 방식 인스펙션도 같은 주요 조작 위치를 사용한다. 정지 상태는 방금 기록과 페널티만 표시하고 `stopSolve()`의 phase guard 뒤 다음 `ScramblePresentation`을 정확히 한 번 게시한다. 기록 화면이 PB, session mean, 완주율, 최근 일관성, current/best Ao5·Ao12와 최근 10/25/50회의 시간 추세를 소유한다. 출시 학습 UI는 초급 10, 완결 2-Look 15, Full CFOP 119, COLL 40, Roux CMLL 42의 실행형 항목 226개를 계열별로 묶고 검색하며, 상태 검증된 대체 후보에 한해 HTM/ETM 길이를 비교한다. 현재 스크램블러는 서명된 TNoodle-WCA 1.2.3 JAR로 오프라인 생성한 32,768개 고유 3×3 출력과 provenance manifest를 번들하며, JAR/JVM/AGPL 실행 코드는 앱에 포함하지 않는다. 기본·다크·틴트용 1024px AppIcon, 로컬 저장·타이머 API 사용 사유를 밝힌 개인정보 매니페스트, 앱 내 개인정보 처리방침 링크와 전체 로컬 데이터 삭제 흐름을 포함한다.
 
@@ -216,6 +216,8 @@ protocol ReviewScheduling: Sendable {
 - 표준 6색 3×3 큐브의 `U, F, R, D, B, L` 면을 이 순서로 정면 촬영한다.
 - 각 촬영은 3×3 전체를 중앙 정사각형 안내선에 맞춘다.
 - 표준 전개도 방향을 보존하도록 촬영 면과 위쪽에 둘 인접 면을 함께 안내한다.
+- 라이브 프레임이 가이드 정렬, 노출, 선명도와 시간 안정성 조건을 충족하면 정지 사진을 자동 촬영한다. 연속 자동 화이트밸런스 같은 카메라 조정 플래그는 하드 gate로 쓰지 않으며 사용자가 직접 누르는 셔터도 항상 유지한다.
+- 자동 촬영이 성공한 뒤에는 큐브가 안내선에서 벗어나거나 장면이 충분히 바뀔 때까지 다음 자동 촬영을 잠가 같은 면의 중복 촬영을 막는다.
 - 자동 판독 결과는 확정값이 아니다. 사용자는 54칸 전개도와 선택한 면의 큰 편집기에서 모든 칸을 검토한다.
 - 선택한 면만 재촬영할 수 있고, 카메라를 쓰지 않고 센터를 제외한 48칸을 직접 입력할 수도 있다.
 - 앱은 불가능한 상태를 오류 위치, 관측 색, 필요한 색 조합과 가능한 엣지·코너 조합으로 설명한다.
@@ -240,30 +242,44 @@ protocol ReviewScheduling: Sendable {
 ```text
 Camera authorization
   → U, F, R, D, B, L frontal guidance
-  → One high-resolution photo per face
+  → Live detected quadrilateral + exposure + sharpness assessment
+  → Consecutive-frame and minimum-dwell auto-capture gate
+  → Automatic or manual high-resolution still
+  → Final-still detected quadrilateral and extraction revalidation
   → EXIF orientation normalization
-  → Central square perspective correction
-  → Robust 3×3 sticker sampling
-  → Six-center relative color classification
+  → Detected-face perspective correction
+  → Inset 3×3 color-patch sampling + cell dispersion
+  → Live/still nine-cell agreement gate
+  → Six-center relative global 9-per-color assignment
   → URFDLB 54-sticker candidate + confidence
-  → Full net review / large face editing / per-face retake
+  → Full net review / target-aware color inspector / per-face retake
   → Color counts and cubie diagnostics
   → Valid CubeState
-  → Stage diagnosis and representative practice
+  → Stage diagnosis + atomic state/orientation handoff
+  → Dedicated in-memory state practice or solved-state timer fallback
 ```
 
 1. `CubeScanCaptureFlow`가 최초 촬영과 면별 재촬영을 분리해 관리한다. 재촬영 실패나 취소는 기존에 승인한 면을 버리지 않는다.
-2. `CubeSingleFaceExtractor`가 JPEG의 방향을 portrait 좌표계에 적용하고 중앙 정사각형을 `CIPerspectiveCorrection`으로 정면화한다.
-3. 각 셀 내부의 좌표별 중앙값으로 대표 RGB를 구해 단일 반사광과 어두운 테두리 영향을 줄인다.
-4. `CubeSingleFaceletReconstructor`가 여섯 관측을 표준 `URFDLB` 54칸과 셀별 신뢰도로 결합한다.
-5. `CubeScanReviewModel`은 센터 6칸을 고정하고 나머지 48칸의 미입력·자동 판독·수정 상태를 보존한다.
-6. `ScanCubeNetView`와 `ScanFaceEditorView`가 전체 면 관계와 선택한 한 면의 세부 편집을 함께 제공한다.
-7. `CubeState`와 `CubeStateDiagnostics`가 색 수량, 12개 엣지, 8개 코너, 엣지 뒤집힘 합, 코너 방향 합과 코너/엣지 순열 parity를 검사한다.
-8. 합법 상태만 크로스·첫 층·두 번째 층·OLL·PLL·완성 단계로 진단해 대표 내장 연습을 추천한다. 정확한 OLL/PLL 개별 케이스 matcher, 촬영 상태의 트레이너 전달, 전체 해결열 생성은 현재 범위가 아니다.
+2. 라이브 분석은 Vision 사각형 후보를 외곽 면 또는 3×3 스티커 격자로 해석한다. 선택한 검출 영역을 실제 색 샘플링에도 사용해 고정 가이드 crop의 위치·크기 오차를 줄이고, 안내선 일치도·평균 휘도·해상도 안정적인 선명도·3×3 장면 서명을 `CubeLiveCaptureAssessment`로 전달한다.
+3. `CubeAutoCaptureGate`는 완화된 정렬·노출·선명도 조건이 2개 연속 프레임과 최소 dwell을 만족할 때 단일 자동 촬영 요청을 만든다. 연속 자동 화이트밸런스의 조정 여부는 하드 gate가 아니며, 수동 셔터는 라이브 품질 gate와 cooldown을 우회하되 진행 중인 한 건의 촬영을 중복 실행하지 않는다.
+4. 성공 뒤의 scene-change latch는 이전 3×3 색 서명이 유지되는 동안 자동 촬영을 다시 준비하지 않는다. 정렬 상실 또는 충분한 서명 변화가 있어야 latch를 해제한다. 실패한 촬영은 cooldown 뒤 같은 장면에서 재시도할 수 있다.
+5. 실제 입력으로 쓰는 것은 고해상도 정지 사진이다. 수동·자동 모두 정지 사진의 검출 영역과 추출 가능 여부를 다시 검사한다. 자동 촬영은 셔터 직전 라이브 9칸과 정지 사진 9칸의 정규화 색이 충분히 같아야 한다.
+6. `CubeSingleFaceExtractor`가 JPEG 방향을 portrait 좌표계에 적용하고 Vision이 선택한 실제 면 사각형을 `CIPerspectiveCorrection`으로 정면화한다. 외곽 대신 스티커 후보를 쓸 때는 최소 7칸과 네 모서리 셀을 모두 요구하고, 모서리 후보의 실제 꼭짓점으로 기울기·사다리꼴 원근을 보존한다.
+7. 비센터 셀은 중앙 영역을, 센터는 로고 중앙을 피한 네 개의 내부 패치를 표본화해 좌표별 중앙값과 색 분산을 함께 만든다. 일반 셀과 센터에 서로 다른 분산 임계값을 적용하고, 색 혼입이 크면 해당 면을 완료 처리하지 않는다.
+8. `CubeBalancedFaceletClassifier`는 새 면을 받을 때 이미 촬영한 센터와의 CIE Lab 분리를 검사한다. 여섯 센터가 모이면 센터를 고정하고 나머지 48칸을 색마다 8개씩 최소 비용으로 전역 배정한다. 용량 제약 때문에 가장 가까운 센터색이 아닌 값으로 배정된 칸은 신뢰도 0으로 공개한다.
+9. `CubeSingleFaceletReconstructor`가 이 결과를 표준 `URFDLB` 54칸과 셀별 신뢰도로 결합한다.
+10. `CubeScanReviewModel`은 센터 6칸을 고정하고 나머지 48칸의 미입력·자동 판독·수정 상태를 보존한다. 면 재촬영 뒤에는 전역 54칸 재분류를 원자적으로 병합해 색당 9칸 제약을 유지하되, 재촬영 면 밖의 명시적 사용자 수정은 보존한다.
+11. `ScanCubeNetView`와 `ScanFaceEditorView`가 전체 면 관계와 선택한 한 면을 함께 제공한다. 3×2 색상 inspector는 면·칸 위치·현재 색·적용 결과를 유지하고 색 선택 뒤 다음 칸으로 자동 이동하지 않는다.
+12. `CubeState`와 `CubeStateDiagnostics`가 색 수량, 12개 엣지, 8개 코너, 엣지 뒤집힘 합, 코너 방향 합과 코너/엣지 순열 parity를 검사한다.
+13. 합법 상태를 크로스·첫 층·두 번째 층·OLL·PLL·AUF·완성 단계와 다음 목표로 진단한다. 미완성 상태는 검토한 54칸·진단·identity 방향을 한 값으로 상태 연습에 넘기며, 완성 상태는 일반 타이머로 돌아간다. 정확한 OLL/PLL 개별 케이스 matcher와 전체 해결열 생성은 현재 범위가 아니다.
+
+라이브 gate는 중앙 촬영 가이드에 대한 설명 가능한 휴리스틱이다. 사각형 후보를 임의 배경의 큐브 객체로 분류하지 않으며, 자동 촬영 가능 상태가 54칸 인식 성공이나 올바른 큐브 상태를 보증하지 않는다. 라이브 평가값·3×3 장면 서명·정지 사진은 메모리에서 해당 촬영을 처리하는 동안만 사용하고 파일이나 사진 보관함에 저장하거나 네트워크로 전송하지 않는다.
 
 ### 6.4 오류와 복구
 
 - 미입력 칸은 중립 점선으로 표시하고 검증 전에 채우도록 안내한다.
+- 정지 사진에서 색이 섞인 칸이나 셔터 전후 색 변화가 크면 면을 확정하지 않고 칸 번호와 같은 면 재촬영을 안내한다.
+- 전역 색 수량 제약으로 보정된 칸과 낮은 거리 차이는 주황색 낮은 신뢰도로 남긴다. 합법 상태여도 `형식 검사 통과`와 `실물 일치`를 구분한다.
 - 색 수량 오류는 각 색의 현재 개수와 필요한 9개를 함께 보여 준다.
 - 누락·중복 엣지와 코너는 조각 위치, 인식된 색과 필요한 색 조합을 제시한다.
 - 방향 합 또는 parity처럼 원인이 하나로 확정되지 않는 오류는 낮은 신뢰도 후보를 우선 표시하되 특정 칸을 정답처럼 자동 선택하지 않는다.
@@ -272,9 +288,21 @@ Camera authorization
 
 ### 6.5 검증 경계
 
-자동 테스트는 촬영 순서와 방향 계약, 재촬영 상태 보존, 정사각형 표본, 54칸 복원, 수동 편집 불변식과 cubie 진단을 다룬다. 최신 전체 `swift test`는 Swift Testing 139개와 XCTest 4개가 통과했다. strict concurrency·warnings-as-errors Simulator 빌드와 개발 팀으로 서명한 generic iOS 빌드도 성공했다.
+자동 테스트는 촬영 순서와 방향 계약, 자동 촬영의 연속 프레임·dwell·품질 gate·single-flight·cooldown·scene-change latch, 수동 촬영의 라이브 불일치 우회, 투시 격자·센터 로고 표본, 센터 분리, 색당 9칸 전역 분류와 사용자 편집을 고정한 재촬영 병합, 54칸 복원, 수동 편집 불변식과 cubie 진단을 다룬다. 최신 전체 `swift test`는 Swift Testing 226개와 XCTest 4개가 통과했다. strict concurrency·`GCC_TREAT_WARNINGS_AS_ERRORS=YES` iPhone 13 mini·iPhone 17 Pro Simulator 빌드, `xcodebuild analyze`와 개발 팀으로 서명한 generic iOS 빌드도 성공했다.
 
-최신 개발 빌드는 연결된 iPhone 13 mini에 설치했고 기기 앱 목록에서 버전 1.0(빌드 1)을 확인했다. 자동 실행은 iOS가 개발자 프로파일 신뢰를 요구해 차단됐다. 사용자 신뢰 후 앱 실행, 카메라 권한, 여섯 면 실촬영, 조명·반사·재질별 인식률과 재촬영 복구를 검증해야 한다. 설치 성공과 Simulator·generic iOS 빌드는 라이브 카메라 품질의 증거가 아니다.
+기본 임계값은 알고리즘 계약과 자동 테스트를 위한 초기값일 뿐 출시 교정값이 아니다. 최신 개발 빌드는 연결된 iPhone 13 mini에 설치했고 일반 실행과 직접 카메라 경로 실행을 확인했다. iPhone 13 mini와 iPhone 17 Pro 물리 기기에서 프레임 속도, 손떨림, 밝고 어두운 조명, 반사와 큐브 재질별로 정렬·노출·선명도·dwell·장면 변화 임계값, 자동 촬영 지연, 중복 방지, 색상 정확도와 수동/재촬영 복구를 교정해야 한다. 설치·프로세스 실행 성공, Simulator, 순수 로직 테스트와 generic iOS 빌드는 이 검증의 증거가 아니다.
+
+
+### 6.6 상태 기반 연습 세션
+
+`ValidatedCubeScan`은 검토를 마친 합법 `CubeState`, 단계·목표 진단, identity U/F 방향과 검토 시각을 하나의 값으로 보존한다. `CubeStatePracticeSessionModel`은 이 값을 전용 메모리 내 세션으로 소유하며 스크램블, 해결 동작 또는 `SolveRecord`를 생성하지 않는다.
+
+- 브리핑은 촬영한 시작 전개도·흰색 U 위/초록색 F 앞 방향과 Core가 정한 이번 목표를 먼저 제시한다.
+- 실행 시간은 단조 시계의 활성 구간만 누적하고 스캔·일시정지 시간은 제외한다. 실행 화면 전체의 첫 touch-down이 one-shot 정지를 담당한다.
+- 일시정지는 목표를 유지한 채 공식 없는 개념 힌트를 순서대로 열고, 막힘·실패 경로에서 진단에 연결된 학습 또는 개념 연습을 연다.
+- 결과 스캔은 시작과 같은 orientation만 수락한다. `CubePracticeGoalEvaluator`가 시작·결과에 동일한 목표 predicate를 적용해 `achieved`, `improved`, `unchanged`, `regressed`를 반환한다.
+- 결과가 다시 연습 가능한 상태면 그 검토 상태를 새 시작점으로 삼는다. 세션 ID, 활성 시간과 힌트는 초기화한다.
+- 상태 연습은 일반 타이머 기록, `ReviewAttempt`, 학습 진도·약점 통계에 쓰지 않는다. `검증됨` evidence/marketing 라벨도 사용하지 않는다.
 
 ## 7. 스크램블 정직성
 
@@ -460,7 +488,7 @@ struct ContentSource: Sendable, Codable {
 | 라이브 카메라 프레임 | 메모리 내, 기기 내 | 없음 |
 | 촬영 원본 | 분석 후 즉시 폐기 | 없음 |
 | 스티커 crop/색 특징 | 세션 중 임시 | 없음 |
-| 복원된 큐브 상태 | 해당 연습 기록에 선택 저장 | 없음 |
+| 복원된 큐브 상태 | 스캔·상태 연습 세션 중 메모리 내 | 없음 |
 | 학습 진행/솔브 기록 | 로컬 영구 저장 | 없음 |
 | 진단 로그 | 민감 데이터 제거 후 로컬 | 없음 |
 
@@ -566,7 +594,7 @@ public enum CubeCameraSessionError: LocalizedError, Sendable {
 
 - Xcode 26.6(17F113), `DVTDownloads` Build 24431과 iOS 26.5 Simulator 런타임을 정합화했다.
 - `xcodebuild -checkFirstLaunchStatus`가 성공했고 iPhone 17 Pro Simulator에서 Debug 빌드·설치·실행을 확인했다.
-- 최신 개발 빌드는 iPhone 13 mini에 설치했고 버전 1.0(빌드 1)을 확인했다. 개발자 프로파일을 사용자 신뢰한 뒤 앱 실행, 카메라 권한·여섯 면 촬영·백그라운드 복귀·거부 후 수동 경로를 출시 차단 항목으로 검증해야 한다.
+- 최신 개발 빌드는 연결된 iPhone 13 mini에 설치·실행했다. iPhone 13 mini·iPhone 17 Pro Simulator에서는 상태 연습 브리핑·일시정지·결과 레이아웃이 잘리지 않음을 확인했다. 물리 기기의 상태 연습 전체 상호작용, 카메라 권한·여섯 면 실촬영·백그라운드 복귀·거부 후 수동 경로와 광범위한 색상 정확도 매트릭스는 출시 차단 항목으로 남아 있다.
 
 ## 16. 주요 의사결정 기록
 

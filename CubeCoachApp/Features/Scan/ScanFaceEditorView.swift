@@ -32,10 +32,7 @@ struct ScanFaceEditorView: View {
                 }
             }
 
-            Text("칸을 선택한 뒤 색을 바꾸세요.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            editorInstruction
 
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3),
@@ -49,6 +46,27 @@ struct ScanFaceEditorView: View {
             .frame(maxWidth: 280)
             .frame(maxWidth: .infinity)
         }
+    }
+
+    private var editorInstruction: some View {
+        Group {
+            if let selectedIndex {
+                let localIndex = selectedIndex - startIndex
+                let currentFace = facelets.indices.contains(selectedIndex)
+                    ? facelets[selectedIndex]
+                    : nil
+                Text(
+                    "선택됨 · \(scanStickerPositionName(localIndex: localIndex))\n" +
+                    "현재 \(currentFace?.scanKoreanColorName ?? "미입력")"
+                )
+            } else {
+                Text("① 바꿀 칸을 누르세요.")
+            }
+        }
+        .font(.caption.weight(selectedIndex == nil ? .regular : .semibold))
+        .foregroundStyle(selectedIndex == nil ? Color.secondary : Color.accentColor)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
     }
 
     private var faceTitle: some View {
@@ -93,15 +111,21 @@ struct ScanFaceEditorView: View {
                             .stroke(
                                     isHighlighted ? Color.red :
                                     isCandidate ? Color.orange :
-                                    isSelected ? Color.accentColor :
                                     isLowConfidence ? Color.orange :
                                     isUnfilled ? Color.secondary.opacity(0.55) :
                                     Color.black.opacity(0.28),
                                 style: StrokeStyle(
-                                    lineWidth: isHighlighted || isCandidate || isSelected ? 3 : isLowConfidence ? 2 : 1,
+                                    lineWidth: isHighlighted || isCandidate ? 3 : isLowConfidence ? 2 : 1,
                                     dash: isUnfilled ? [5, 4] : []
                                 )
                             )
+                    }
+                    .overlay {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 9)
+                                .stroke(Color.accentColor, lineWidth: 4)
+                                .padding(2)
+                        }
                     }
 
                 Text(facelet.map { String($0.rawValue) } ?? "?")
@@ -133,7 +157,12 @@ struct ScanFaceEditorView: View {
             isCenter: isCenter,
             isHighlighted: isHighlighted
         ))
-        .accessibilityHint(isCenter ? "센터색은 바꿀 수 없습니다" : "두 번 탭한 뒤 색상 팔레트에서 선택합니다")
+        .accessibilityHint(
+            isCenter
+                ? "센터색은 바꿀 수 없습니다"
+                : "두 번 탭하면 이 칸의 색상 선택기가 열립니다"
+        )
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func accessibilityLabel(
@@ -142,11 +171,9 @@ struct ScanFaceEditorView: View {
         isCenter: Bool,
         isHighlighted: Bool
     ) -> String {
-        let row = localIndex / 3 + 1
-        let column = localIndex % 3 + 1
         var parts = [
             face.scanKoreanFaceName,
-            "\(row)행 \(column)열",
+            scanStickerPositionName(localIndex: localIndex),
             facelet?.scanKoreanColorName ?? "미입력",
         ]
         if isCenter { parts.append("고정 센터") }
@@ -156,32 +183,54 @@ struct ScanFaceEditorView: View {
 }
 
 struct ScanStickerPaletteView: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
+    let face: CubeCoachCore.CubeFace
     let selectedIndex: Int?
+    let currentColor: CubeCoachCore.CubeFace?
+    let feedback: String?
     let onChoose: (CubeCoachCore.CubeFace) -> Void
+    let onClose: () -> Void
 
     private let colors: [CubeCoachCore.CubeFace] = [.up, .down, .front, .back, .right, .left]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(selectedIndex == nil ? "먼저 바꿀 칸을 선택하세요" : "스티커 색")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(selectedIndex == nil ? .secondary : .primary)
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(targetInstruction)
+                        .font(.caption.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(feedback ?? currentColorText)
+                        .font(.caption2)
+                        .foregroundStyle(feedback == nil ? Color.secondary : Color.accentColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 32, height: 32)
+                        .background(Color.secondary.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("색상 선택기 닫기")
+            }
 
-            if dynamicTypeSize.isAccessibilitySize {
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3),
-                    spacing: 7
-                ) {
-                    paletteButtons
-                }
-            } else {
-                HStack(spacing: 7) {
-                    paletteButtons
-                }
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3),
+                spacing: 7
+            ) {
+                paletteButtons
             }
         }
+    }
+
+    private var targetInstruction: String {
+        guard let selectedIndex else { return "먼저 바꿀 칸을 선택하세요." }
+        return "② \(face.scanKoreanFaceName) · \(scanStickerPositionName(localIndex: selectedIndex % 9)) 칸의 색 선택"
+    }
+
+    private var currentColorText: String {
+        "현재 \(currentColor?.scanKoreanColorName ?? "미입력") · 선택하면 바로 적용돼요."
     }
 
     @ViewBuilder
@@ -197,11 +246,13 @@ struct ScanStickerPaletteView: View {
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(Color.black.opacity(0.34), lineWidth: 1)
                         }
-                    VStack(spacing: 0) {
-                        Text(face.scanShortColorName)
+                    HStack(spacing: 4) {
+                        if currentColor == face {
+                            Image(systemName: "checkmark")
+                                .font(.caption2.weight(.heavy))
+                        }
+                        Text(face.scanKoreanColorName)
                             .font(.caption.weight(.heavy))
-                        Text(face.scanNotation)
-                            .font(.caption2.monospaced().weight(.bold))
                     }
                     .foregroundStyle(face.scanStickerForegroundColor)
                 }
@@ -211,7 +262,28 @@ struct ScanStickerPaletteView: View {
             .buttonStyle(.plain)
             .disabled(selectedIndex == nil)
             .opacity(selectedIndex == nil ? 0.45 : 1)
-            .accessibilityLabel("\(face.scanKoreanColorName) 선택")
+            .accessibilityLabel(accessibilityLabel(for: face))
+            .accessibilityAddTraits(currentColor == face ? .isSelected : [])
         }
+    }
+
+    private func accessibilityLabel(for color: CubeCoachCore.CubeFace) -> String {
+        guard let selectedIndex else { return "\(color.scanKoreanColorName), 선택할 칸 없음" }
+        return "\(color.scanKoreanColorName), \(face.scanKoreanFaceName) \(scanStickerPositionName(localIndex: selectedIndex % 9)) 칸에 적용"
+    }
+}
+
+private func scanStickerPositionName(localIndex: Int) -> String {
+    switch localIndex {
+    case 0: "왼쪽 위"
+    case 1: "위 가운데"
+    case 2: "오른쪽 위"
+    case 3: "왼쪽"
+    case 4: "가운데"
+    case 5: "오른쪽"
+    case 6: "왼쪽 아래"
+    case 7: "아래 가운데"
+    case 8: "오른쪽 아래"
+    default: "선택한 칸"
     }
 }

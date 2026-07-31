@@ -112,51 +112,46 @@ struct TimerPracticeContainer: View {
     }
 }
 
-/// A successful scan starts executable recall or a cube-native concept task,
-/// never a generated full solution.
+/// A successful scan starts a goal-based attempt from the reviewed physical
+/// state, never a generated scramble or full solution.
 private struct ScanPracticeContainer: View {
-    @EnvironmentObject private var store: LearningProgressStore
-    @State private var showsTrainer = false
-    @State private var showsConceptPractice = false
-    @State private var recommendedCases: [StudyCaseUI] = []
-    @State private var conceptDiagnosis: CubePracticeDiagnosis?
+    @Environment(\.dismiss) private var dismiss
+    @State private var practiceModel: CubeStatePracticeSessionModel?
+    @State private var showsStatePractice = false
+    @State private var startError: String?
 
     var body: some View {
-        CubeScanFeatureView { diagnosis in
-            let cases = practiceCases(for: diagnosis)
-            if cases.isEmpty {
-                conceptDiagnosis = diagnosis
-                showsConceptPractice = true
-            } else {
-                recommendedCases = cases
-                showsTrainer = true
+        CubeScanFeatureView { scan in
+            if scan.diagnosis.isSolved {
+                dismiss()
+                return
+            }
+            do {
+                practiceModel = try CubeStatePracticeSessionModel(
+                    initialScan: scan
+                )
+                showsStatePractice = true
+            } catch {
+                startError = "촬영한 상태로 연습을 준비하지 못했어요."
             }
         }
-        .navigationDestination(isPresented: $showsTrainer) {
-            TrainerView(initialCases: recommendedCases, mode: .scanRecommendation)
-        }
-        .navigationDestination(isPresented: $showsConceptPractice) {
-            if let conceptDiagnosis {
-                ScanConceptPracticeView(diagnosis: conceptDiagnosis)
+        .navigationDestination(isPresented: $showsStatePractice) {
+            if let practiceModel {
+                CubeStatePracticeView(model: practiceModel) {
+                    dismiss()
+                }
             }
         }
-    }
-
-    private func practiceCases(for diagnosis: CubePracticeDiagnosis) -> [StudyCaseUI] {
-        guard let curriculum = CurriculumCatalog.builtIn.first(where: {
-            $0.track == diagnosis.recommendedCurriculumTrack
-        }),
-        let lesson = curriculum.lessons.first(where: {
-            $0.id == diagnosis.recommendedLessonID
-        }) else {
-            return []
-        }
-
-        let caseIDs = lesson.algorithms.isEmpty
-            ? [lesson.id]
-            : lesson.algorithms.map(\.id)
-        return store.catalog.filter {
-            caseIDs.contains($0.id) && $0.exercise != nil
+        .alert(
+            "상태 연습을 시작하지 못했어요",
+            isPresented: Binding(
+                get: { startError != nil },
+                set: { if !$0 { startError = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(startError ?? "전개도를 다시 확인해 주세요.")
         }
     }
 }

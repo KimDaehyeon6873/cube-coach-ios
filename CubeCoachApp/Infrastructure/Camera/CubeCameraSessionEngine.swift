@@ -166,11 +166,13 @@ public enum CubeSingleFaceExtractor {
         guard pixels.count == width * height else {
             throw CubeSingleFaceExtractionError.renderFailed
         }
+        let measurements = try CubeFaceGridSampler.measurements(
+            from: .init(width: width, height: height, pixels: pixels)
+        )
         return CubeSingleFaceObservation(
             face: face,
-            samples: try CubeFaceGridSampler.samples(
-                from: .init(width: width, height: height, pixels: pixels)
-            ),
+            samples: measurements.map(\.sample),
+            cellColorDispersions: measurements.map(\.dispersion),
             orientation: orientation
         )
     }
@@ -352,14 +354,17 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
 
     let session = AVCaptureSession()
     var onRectangleCandidates: (@Sendable (Int) -> Void)?
+    var onLiveCaptureAssessment: (@Sendable (CubeLiveCaptureAssessment) -> Void)?
     var onVisionAnalysisFailure: (@Sendable () -> Void)?
 
     private let sessionQueue = DispatchQueue(label: "com.cubecoach.camera.session", qos: .userInitiated)
     private let visionQueue = DispatchQueue(label: "com.cubecoach.camera.vision", qos: .userInitiated)
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
+    private let liveFrameContext = CIContext(options: [.cacheIntermediates: false])
     private var isConfigured = false
     private var lastVisionTimestamp: CFTimeInterval = 0
+    private var backCamera: AVCaptureDevice?
     private var pendingCaptures: [Int64: PendingCapture] = [:]
     private let pendingLock = NSLock()
 
@@ -381,6 +386,7 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
             throw CubeCameraSessionError.noCamera
         }
+        try configureContinuousCameraAdjustment(camera)
 
         let input = try AVCaptureDeviceInput(device: camera)
         session.beginConfiguration()
@@ -393,13 +399,37 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
 
         session.addInput(input)
         session.addOutput(photoOutput)
+        photoOutput.maxPhotoQualityPrioritization = .balanced
         videoOutput.alwaysDiscardsLateVideoFrames = true
+        session.addOutput(videoOutput)
         videoOutput.videoSettings = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
         ]
         videoOutput.setSampleBufferDelegate(self, queue: visionQueue)
-        session.addOutput(videoOutput)
+        backCamera = camera
         isConfigured = true
+    }
+
+    private func configureContinuousCameraAdjustment(_ camera: AVCaptureDevice) throws {
+        try camera.lockForConfiguration()
+        defer { camera.unlockForConfiguration() }
+
+        let guideCenter = CGPoint(x: 0.5, y: 0.5)
+        if camera.isFocusPointOfInterestSupported {
+            camera.focusPointOfInterest = guideCenter
+        }
+        if camera.isFocusModeSupported(.continuousAutoFocus) {
+            camera.focusMode = .continuousAutoFocus
+        }
+        if camera.isExposurePointOfInterestSupported {
+            camera.exposurePointOfInterest = guideCenter
+        }
+        if camera.isExposureModeSupported(.continuousAutoExposure) {
+            camera.exposureMode = .continuousAutoExposure
+        }
+        if camera.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+            camera.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
     }
 
     func start() {
@@ -439,7 +469,10 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
                     continuation.resume(throwing: CubeCameraSessionError.notReady)
                     return
                 }
-                let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+                let settings = AVCapturePhotoSettings(format: [
+                    AVVideoCodecKey: AVVideoCodecType.jpeg
+                ])
+                settings.photoQualityPrioritization = .balanced
                 pendingLock.withLock {
                     pendingCaptures[settings.uniqueID] = PendingCapture(
                         target: target,
@@ -451,31 +484,134 @@ final class CubeCameraSessionEngine: NSObject, @unchecked Sendable {
         }
     }
 
-    private static func rectangleCount(in pixelBuffer: CVPixelBuffer) throws -> Int {
+    private static func rectangleObservations(
+        in pixelBuffer: CVPixelBuffer
+    ) throws -> [VNRectangleObservation] {
         let request = VNDetectRectanglesRequest()
         request.maximumObservations = 18
         request.minimumSize = 0.045
         request.minimumAspectRatio = 0.55
-        request.maximumAspectRatio = 1.45
+        request.maximumAspectRatio = 1
         request.quadratureTolerance = 25
         try VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right).perform([request])
-        return request.results?.count ?? 0
+        return request.results ?? []
     }
 
     static func rectangleCount(in data: Data) throws -> Int {
+        try rectangleObservations(in: data).count
+    }
+
+    private static func rectangleObservations(in data: Data) throws -> [VNRectangleObservation] {
         let request = VNDetectRectanglesRequest()
         request.maximumObservations = 18
         request.minimumSize = 0.045
         request.minimumAspectRatio = 0.55
-        request.maximumAspectRatio = 1.45
+        request.maximumAspectRatio = 1
         request.quadratureTolerance = 25
         try VNImageRequestHandler(data: data, orientation: .right).perform([request])
-        return request.results?.count ?? 0
+        return request.results ?? []
     }
 
-    private static func confidence(for count: Int) -> Double {
-        // This is a capture-quality heuristic, not cube-state recognition confidence.
-        min(0.95, max(0.2, Double(count) / 9.0))
+    private static func portraitDisplayQuadrilateral(
+        from observation: VNRectangleObservation
+    ) -> CubeNormalizedGuideQuadrilateral {
+        func displayPoint(_ point: CGPoint) -> CubeNormalizedGuidePoint {
+            // Vision observations use a bottom-left origin after applying `.right`.
+            // The preview guide uses portrait display coordinates with a top-left origin.
+            CubeNormalizedGuidePoint(x: point.x, y: 1 - point.y)
+        }
+        return CubeNormalizedGuideQuadrilateral(
+            topLeft: displayPoint(observation.topLeft),
+            topRight: displayPoint(observation.topRight),
+            bottomRight: displayPoint(observation.bottomRight),
+            bottomLeft: displayPoint(observation.bottomLeft)
+        )
+    }
+
+    private static func guideMatch(
+        for observations: [VNRectangleObservation]
+    ) -> CubeSingleFaceGuideMatch? {
+        CubeSingleFaceGuideAlignmentScorer.match(
+            observations.map(portraitDisplayQuadrilateral(from:))
+        )
+    }
+
+    private func liveGuideImage(
+        from pixelBuffer: CVPixelBuffer,
+        layout: CubeSingleFaceGuideLayout
+    ) throws -> CubeRectifiedFaceImage {
+        let portraitImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
+        let extent = portraitImage.extent
+        let guide = layout.quadrilateral
+
+        func imagePoint(_ point: CubeNormalizedGuidePoint) -> CGPoint {
+            CGPoint(
+                x: extent.minX + point.x * extent.width,
+                y: extent.maxY - point.y * extent.height
+            )
+        }
+
+        guard let correction = CIFilter(name: "CIPerspectiveCorrection") else {
+            throw CubeCameraSessionError.visionAnalysisFailed
+        }
+        correction.setValue(portraitImage, forKey: kCIInputImageKey)
+        correction.setValue(CIVector(cgPoint: imagePoint(guide.topLeft)), forKey: "inputTopLeft")
+        correction.setValue(CIVector(cgPoint: imagePoint(guide.topRight)), forKey: "inputTopRight")
+        correction.setValue(
+            CIVector(cgPoint: imagePoint(guide.bottomRight)),
+            forKey: "inputBottomRight"
+        )
+        correction.setValue(
+            CIVector(cgPoint: imagePoint(guide.bottomLeft)),
+            forKey: "inputBottomLeft"
+        )
+        guard let corrected = correction.outputImage else {
+            throw CubeCameraSessionError.visionAnalysisFailed
+        }
+
+        let correctedExtent = corrected.extent.integral
+        guard correctedExtent.width >= 9, correctedExtent.height >= 9 else {
+            throw CubeCameraSessionError.visionAnalysisFailed
+        }
+        let maximumDimension = 90.0
+        let scale = min(1, maximumDimension / max(correctedExtent.width, correctedExtent.height))
+        let normalized = corrected
+            .transformed(by: CGAffineTransform(
+                translationX: -correctedExtent.minX,
+                y: -correctedExtent.minY
+            ))
+            .transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let renderExtent = normalized.extent.integral
+        let width = Int(renderExtent.width)
+        let height = Int(renderExtent.height)
+        guard width >= 9, height >= 9 else {
+            throw CubeCameraSessionError.visionAnalysisFailed
+        }
+
+        var bytes = Array(repeating: UInt8(0), count: width * height * 4)
+        liveFrameContext.render(
+            normalized,
+            toBitmap: &bytes,
+            rowBytes: width * 4,
+            bounds: CGRect(x: 0, y: 0, width: width, height: height),
+            format: .RGBA8,
+            colorSpace: CGColorSpace(name: CGColorSpace.sRGB)
+        )
+        let pixels = stride(from: 0, to: bytes.count, by: 4).map { offset in
+            CubeRGBSample(
+                red: Double(bytes[offset]) / 255,
+                green: Double(bytes[offset + 1]) / 255,
+                blue: Double(bytes[offset + 2]) / 255
+            )
+        }
+        return CubeRectifiedFaceImage(width: width, height: height, pixels: pixels)
+    }
+
+    private var isCameraSettled: Bool {
+        guard let backCamera else { return false }
+        return !backCamera.isAdjustingFocus
+            && !backCamera.isAdjustingExposure
+            && !backCamera.isAdjustingWhiteBalance
     }
 }
 
@@ -486,11 +622,30 @@ extension CubeCameraSessionEngine: AVCaptureVideoDataOutputSampleBufferDelegate 
         from connection: AVCaptureConnection
     ) {
         let now = CACurrentMediaTime()
-        guard now - lastVisionTimestamp >= 0.45,
+        guard now - lastVisionTimestamp >= 0.27,
               let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         lastVisionTimestamp = now
         do {
-            onRectangleCandidates?(try Self.rectangleCount(in: pixelBuffer))
+            let observations = try Self.rectangleObservations(in: pixelBuffer)
+            let count = observations.count
+            onRectangleCandidates?(count)
+            let guideMatch = Self.guideMatch(for: observations)
+            let samplingLayout = CubeSingleFaceGuideLayout(
+                quadrilateral: guideMatch?.samplingQuadrilateral
+                    ?? CubeSingleFaceGuideLayout.portraitCentralSquare.quadrilateral
+            )
+            let quality = try CubeLiveFrameQualityAnalyzer.analyze(
+                liveGuideImage(from: pixelBuffer, layout: samplingLayout)
+            )
+            onLiveCaptureAssessment?(CubeLiveCaptureAssessment(
+                timestamp: now,
+                rectangleCandidateCount: count,
+                alignmentConfidence: guideMatch?.alignmentConfidence ?? 0,
+                sharpness: quality.sharpness,
+                exposure: quality.exposure,
+                isCameraSettled: isCameraSettled,
+                signature: quality.signature
+            ))
         } catch {
             onVisionAnalysisFailure?()
         }
@@ -514,7 +669,9 @@ extension CubeCameraSessionEngine: AVCapturePhotoCaptureDelegate {
 
         visionQueue.async {
             do {
-                let count = try Self.rectangleCount(in: data)
+                let rectangleObservations = try Self.rectangleObservations(in: data)
+                let count = rectangleObservations.count
+                let guideMatch = Self.guideMatch(for: rectangleObservations)
                 let poseObservation: CubePoseObservation?
                 let faceObservation: CubeSingleFaceObservation?
                 switch pendingCapture.target {
@@ -526,15 +683,22 @@ extension CubeCameraSessionEngine: AVCapturePhotoCaptureDelegate {
                     faceObservation = nil
                 case let .face(orientation):
                     poseObservation = nil
-                    faceObservation = try CubeSingleFaceExtractor.extract(
-                        jpegData: data,
-                        face: orientation.face,
-                        orientation: orientation
-                    )
+                    if let guideMatch {
+                        faceObservation = try CubeSingleFaceExtractor.extract(
+                            jpegData: data,
+                            face: orientation.face,
+                            layout: CubeSingleFaceGuideLayout(
+                                quadrilateral: guideMatch.samplingQuadrilateral
+                            ),
+                            orientation: orientation
+                        )
+                    } else {
+                        faceObservation = nil
+                    }
                 }
                 pendingCapture.continuation.resume(returning: CubePhotoAnalysis(
                     rectangleCandidateCount: count,
-                    confidence: Self.confidence(for: count),
+                    confidence: guideMatch?.alignmentConfidence ?? 0,
                     poseObservation: poseObservation,
                     singleFaceObservation: faceObservation
                 ))
