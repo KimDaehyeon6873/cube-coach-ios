@@ -81,7 +81,7 @@ open CubeCoach.xcodeproj
 
 Xcode에서 `CubeCoach` 스킴과 iOS 17 이상 대상을 선택해 실행합니다. 시뮬레이터에서는 학습·타이머·기록·수동 스캔 흐름을 확인할 수 있고, 실제 촬영·권한 흐름은 카메라가 있는 iPhone에서 검증해야 합니다.
 
-로컬 Xcode 26.6의 `IDESimulatorFoundation`/`DVTDownloads` 불일치는 `xcodebuild -runFirstLaunch`와 iOS 플랫폼 재설치로 정합화했습니다. 최신 전체 `swift test`는 Swift Testing 139개와 XCTest 4개가 통과했고, strict concurrency·warnings-as-errors Simulator 빌드와 개발 팀으로 서명한 generic iOS 빌드도 성공했습니다. 등록된 iPhone은 현재 `unavailable` 상태여서 최신 빌드의 설치·실행과 라이브 카메라 인식률은 검증하지 못했습니다. 시뮬레이터와 generic iOS 빌드 통과는 이 실기기 검증을 대신하지 않습니다.
+로컬 Xcode 26.6의 `IDESimulatorFoundation`/`DVTDownloads` 불일치는 `xcodebuild -runFirstLaunch`와 iOS 플랫폼 재설치로 정합화했습니다. 최신 전체 `swift test`는 Swift Testing 139개와 XCTest 4개가 통과했고, strict concurrency·warnings-as-errors Simulator 빌드와 개발 팀으로 서명한 generic iOS 빌드도 성공했습니다. 최신 개발 빌드는 연결된 iPhone 13 mini에 설치했고 기기 앱 목록에서 버전 1.0(빌드 1)을 확인했습니다. 자동 실행은 iOS의 개발자 프로파일 신뢰가 완료되지 않아 차단됐으며, 사용자 신뢰 후 앱 실행·카메라 권한·6면 실촬영·라이브 인식률 검증이 남았습니다. 설치 및 빌드 통과는 이 실기기 실행 검증을 대신하지 않습니다.
 
 ## 문서
 
