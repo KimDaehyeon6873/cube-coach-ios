@@ -98,9 +98,11 @@
 - 긴 전체 공식은 줄바꿈하지 않고 가로 스크롤로 표시해 기호 중간이 잘리지 않게 했다.
 - 공식 카드와 단계 버튼에서는 회전 방향 문장을 제거하고 `R U R' U'` 같은 표준 기호만 표시한다.
 - `R`, `R'`, `R2`의 뜻과 방향 화살표는 학습 첫 화면의 `기호 읽는 법`으로 모았다.
+- 고급 공식 기호는 기호와 뜻이 같은 시작점에 정렬되는 두 열 표로 바꿨다. `x · y · z`는 한 줄로 유지하고 `큐브 전체 회전`을 같은 행의 오른쪽 열에 배치했다.
 - 별표는 표준 공식 표기가 아니므로 사용하지 않는다. 내부 파서와 학습 UI 모두 WCA Article 12의 아포스트로피를 유지한다.
 - 설정의 개인정보·삭제 안내를 짧은 행으로 나누고, 가변 본문 높이를 보장해 좁은 화면에서도 문장 중간이 잘리지 않게 했다.
 - iPhone 17 Pro와 iPhone 13 mini의 학습 첫 화면에서 새 문구가 잘리지 않고 카드 폭 안에 놓이는 것을 확인했다(`/tmp/cubecoach-copy-notation-shots/iphone-17-pro-learn.png`, `/tmp/cubecoach-copy-notation-shots/iphone-13-mini-learn.png`).
+- iPhone 13 mini의 펼친 기호 안내에서 고급 기호 다섯 행의 열 정렬과 줄바꿈 방지를 확인했다(`/tmp/cubecoach-notation-layout-ui/13mini-final-notation-scrollaction.png`).
 
 ### 4. 앱 아이콘 재설계
 

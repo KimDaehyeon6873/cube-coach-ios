@@ -81,10 +81,10 @@ struct NotationPrimerView: View {
 
                 Text("고급 공식 기호")
                     .font(.subheadline.weight(.semibold))
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 112), spacing: 8)],
+                Grid(
                     alignment: .leading,
-                    spacing: 8
+                    horizontalSpacing: 12,
+                    verticalSpacing: 8
                 ) {
                     advancedNotation("Rw", "오른쪽 두 겹")
                     advancedNotation("M", "가운데 세로층")
@@ -92,23 +92,29 @@ struct NotationPrimerView: View {
                     advancedNotation("S", "가운데 앞뒤층")
                     advancedNotation("x · y · z", "큐브 전체 회전")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
     private func advancedNotation(_ notation: String, _ description: String) -> some View {
-        HStack(spacing: 8) {
+        GridRow(alignment: .firstTextBaseline) {
             Text(notation)
                 .font(.subheadline.monospaced().bold())
                 .foregroundStyle(Color.coachAccent)
-                .frame(minWidth: 36, alignment: .leading)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .gridColumnAlignment(.leading)
             Text(description)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
+                .gridColumnAlignment(.leading)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(notation.replacingOccurrences(of: " · ", with: ", ")), \(description)"
+        )
     }
 
     private func notationCard(
