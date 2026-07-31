@@ -716,7 +716,7 @@ public struct CubeScanFeatureView: View {
     private var reviewExperience: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 16) {
+                LazyVStack(spacing: 16) {
                     reviewHeader
                     reviewStatusCard
 

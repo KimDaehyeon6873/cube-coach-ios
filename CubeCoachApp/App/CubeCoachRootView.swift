@@ -50,6 +50,7 @@ struct CubeCoachRootView: View {
 struct TimerPracticeContainer: View {
     @EnvironmentObject private var store: LearningProgressStore
     @StateObject private var model = TimerFeatureModel()
+    @State private var showsScanPractice = false
 
     var body: some View {
         TimerFeatureView(model: model)
@@ -59,10 +60,15 @@ struct TimerPracticeContainer: View {
             .onChange(of: store.records, initial: true) { _, records in
                 model.replaceRecords(Self.timerRecords(from: records))
             }
+            .navigationDestination(isPresented: $showsScanPractice) {
+                ScanPracticeContainer {
+                    showsScanPractice = false
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        ScanPracticeContainer()
+                    Button {
+                        showsScanPractice = true
                     } label: {
                         Label("내 큐브 확인", systemImage: "camera.viewfinder")
                     }
@@ -115,15 +121,16 @@ struct TimerPracticeContainer: View {
 /// A successful scan starts a goal-based attempt from the reviewed physical
 /// state, never a generated scramble or full solution.
 private struct ScanPracticeContainer: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var practiceModel: CubeStatePracticeSessionModel?
     @State private var showsStatePractice = false
     @State private var startError: String?
 
+    let onFinish: () -> Void
+
     var body: some View {
         CubeScanFeatureView { scan in
             if scan.diagnosis.isSolved {
-                dismiss()
+                onFinish()
                 return
             }
             do {
@@ -138,7 +145,7 @@ private struct ScanPracticeContainer: View {
         .navigationDestination(isPresented: $showsStatePractice) {
             if let practiceModel {
                 CubeStatePracticeView(model: practiceModel) {
-                    dismiss()
+                    onFinish()
                 }
             }
         }

@@ -17,7 +17,7 @@ struct LearningCaseDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 learningPurpose
 
                 if let exercise {

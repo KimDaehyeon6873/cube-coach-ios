@@ -18,6 +18,7 @@ struct CubeStatePracticeView: View {
     @State private var showsConceptPractice = false
     @State private var recommendedCases: [StudyCaseUI] = []
     @State private var conceptDiagnosis: CubePracticeDiagnosis?
+    @State private var abandonsSessionOnDisappear = false
 
     init(
         model: CubeStatePracticeSessionModel,
@@ -54,6 +55,10 @@ struct CubeStatePracticeView: View {
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase != .active, model.phase == .running else { return }
             model.stop(reason: .interrupted)
+        }
+        .onDisappear {
+            guard abandonsSessionOnDisappear else { return }
+            model.abandon()
         }
         .fullScreenCover(
             isPresented: $showsResultScanner,
@@ -492,7 +497,7 @@ struct CubeStatePracticeView: View {
     }
 
     private func finishPractice() {
-        model.abandon()
+        abandonsSessionOnDisappear = true
         if let onFinish {
             onFinish()
         } else {
@@ -648,6 +653,7 @@ struct CubeStatePracticePreviewHost: View {
     }
 
     @StateObject private var model: CubeStatePracticeSessionModel
+    @State private var showsPractice = true
 
     init(mode: Mode) {
         let startAlgorithm = try! WCAParser.parse("R U R' U'")
@@ -676,7 +682,14 @@ struct CubeStatePracticePreviewHost: View {
     }
 
     var body: some View {
-        CubeStatePracticeView(model: model)
+        Text("연습 종료 완료")
+            .font(.title2.bold())
+            .accessibilityIdentifier("state-practice-finish-confirmation")
+            .navigationDestination(isPresented: $showsPractice) {
+                CubeStatePracticeView(model: model) {
+                    showsPractice = false
+                }
+            }
     }
 }
 #endif
