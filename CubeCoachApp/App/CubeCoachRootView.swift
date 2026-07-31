@@ -50,6 +50,7 @@ struct CubeCoachRootView: View {
 struct TimerPracticeContainer: View {
     @EnvironmentObject private var store: LearningProgressStore
     @StateObject private var model = TimerFeatureModel()
+    @State private var showsScanPractice = false
 
     var body: some View {
         TimerFeatureView(model: model)
@@ -59,14 +60,19 @@ struct TimerPracticeContainer: View {
             .onChange(of: store.records, initial: true) { _, records in
                 model.replaceRecords(Self.timerRecords(from: records))
             }
+            .navigationDestination(isPresented: $showsScanPractice) {
+                ScanPracticeContainer {
+                    showsScanPractice = false
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        ScanPracticeContainer()
+                    Button {
+                        showsScanPractice = true
                     } label: {
                         Label("내 큐브 확인", systemImage: "camera.viewfinder")
                     }
-                    .accessibilityHint("카메라 촬영 또는 54칸 직접 입력으로 내 큐브 상태를 확인합니다")
+                    .accessibilityHint("카메라로 촬영하거나 전개도에 직접 입력해 내 큐브 상태를 확인합니다")
                 }
             }
     }
@@ -112,51 +118,47 @@ struct TimerPracticeContainer: View {
     }
 }
 
-/// A successful scan starts executable recall or a cube-native concept task,
-/// never a generated full solution.
+/// A successful scan starts a goal-based attempt from the reviewed physical
+/// state, never a generated scramble or full solution.
 private struct ScanPracticeContainer: View {
-    @EnvironmentObject private var store: LearningProgressStore
-    @State private var showsTrainer = false
-    @State private var showsConceptPractice = false
-    @State private var recommendedCases: [StudyCaseUI] = []
-    @State private var conceptDiagnosis: CubePracticeDiagnosis?
+    @State private var practiceModel: CubeStatePracticeSessionModel?
+    @State private var showsStatePractice = false
+    @State private var startError: String?
+
+    let onFinish: () -> Void
 
     var body: some View {
-        CubeScanFeatureView { diagnosis in
-            let cases = practiceCases(for: diagnosis)
-            if cases.isEmpty {
-                conceptDiagnosis = diagnosis
-                showsConceptPractice = true
-            } else {
-                recommendedCases = cases
-                showsTrainer = true
+        CubeScanFeatureView { scan in
+            if scan.diagnosis.isSolved {
+                onFinish()
+                return
+            }
+            do {
+                practiceModel = try CubeStatePracticeSessionModel(
+                    initialScan: scan
+                )
+                showsStatePractice = true
+            } catch {
+                startError = "촬영한 상태로 연습을 준비하지 못했어요."
             }
         }
-        .navigationDestination(isPresented: $showsTrainer) {
-            TrainerView(initialCases: recommendedCases, mode: .scanRecommendation)
-        }
-        .navigationDestination(isPresented: $showsConceptPractice) {
-            if let conceptDiagnosis {
-                ScanConceptPracticeView(diagnosis: conceptDiagnosis)
+        .navigationDestination(isPresented: $showsStatePractice) {
+            if let practiceModel {
+                CubeStatePracticeView(model: practiceModel) {
+                    onFinish()
+                }
             }
         }
-    }
-
-    private func practiceCases(for diagnosis: CubePracticeDiagnosis) -> [StudyCaseUI] {
-        guard let curriculum = CurriculumCatalog.builtIn.first(where: {
-            $0.track == diagnosis.recommendedCurriculumTrack
-        }),
-        let lesson = curriculum.lessons.first(where: {
-            $0.id == diagnosis.recommendedLessonID
-        }) else {
-            return []
-        }
-
-        let caseIDs = lesson.algorithms.isEmpty
-            ? [lesson.id]
-            : lesson.algorithms.map(\.id)
-        return store.catalog.filter {
-            caseIDs.contains($0.id) && $0.exercise != nil
+        .alert(
+            "상태 연습을 시작하지 못했어요",
+            isPresented: Binding(
+                get: { startError != nil },
+                set: { if !$0 { startError = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(startError ?? "전개도를 다시 확인해 주세요.")
         }
     }
 }

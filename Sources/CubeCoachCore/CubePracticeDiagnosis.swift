@@ -12,8 +12,25 @@ public enum CubePracticeStage: String, CaseIterable, Codable, Sendable, Equatabl
     case complete
 }
 
+/// The concrete, state-based objective for a practice attempt.
+///
+/// These identifiers describe predicates, not algorithms. In particular, the
+/// PLL goals accept a completed last-layer permutation before the final U-face
+/// alignment, while `auf` requires the exact solved state.
+public enum CubePracticeGoalID: String, CaseIterable, Codable, Sendable, Equatable {
+    case cross
+    case firstLayer
+    case f2l
+    case ollEdges
+    case ollCorners
+    case pllCorners
+    case pllEdges
+    case auf
+}
+
 public struct CubePracticeDiagnosis: Codable, Sendable, Equatable {
     public let stage: CubePracticeStage
+    public let goalID: CubePracticeGoalID?
     public let title: String
     public let practiceGoal: String
     public let recommendedCurriculumTrack: CurriculumTrack
@@ -23,12 +40,14 @@ public struct CubePracticeDiagnosis: Codable, Sendable, Equatable {
 
     public init(
         stage: CubePracticeStage,
+        goalID: CubePracticeGoalID? = nil,
         title: String,
         practiceGoal: String,
         recommendedCurriculumTrack: CurriculumTrack,
         recommendedLessonID: String
     ) {
         self.stage = stage
+        self.goalID = goalID
         self.title = title
         self.practiceGoal = practiceGoal
         self.recommendedCurriculumTrack = recommendedCurriculumTrack
@@ -56,6 +75,7 @@ public enum CubePracticeDiagnoser {
         if isSolvedAfterAUF(state) {
             return CubePracticeDiagnosis(
                 stage: .aufRequired,
+                goalID: .auf,
                 title: "마지막 U면 정렬(AUF)",
                 practiceGoal: "마지막 층을 윗면 회전으로 정렬해 옆면 센터 색에 맞추세요.",
                 recommendedCurriculumTrack: .fullCFOP,
@@ -66,6 +86,7 @@ public enum CubePracticeDiagnoser {
         guard isDownCrossComplete(state) else {
             return CubePracticeDiagnosis(
                 stage: .downCrossIncomplete,
+                goalID: .cross,
                 title: "D면 십자 연습",
                 practiceGoal: "D면 엣지 네 개를 각 옆면 센터 색까지 맞춰 십자를 완성하세요.",
                 recommendedCurriculumTrack: .beginner,
@@ -76,6 +97,7 @@ public enum CubePracticeDiagnoser {
         guard isFirstLayerComplete(state) else {
             return CubePracticeDiagnosis(
                 stage: .downCrossComplete,
+                goalID: .firstLayer,
                 title: "첫 층 코너 연습",
                 practiceGoal: "완성한 십자를 유지하면서 D면 코너 네 개를 올바른 슬롯에 넣으세요.",
                 recommendedCurriculumTrack: .beginner,
@@ -86,6 +108,7 @@ public enum CubePracticeDiagnoser {
         guard isF2LComplete(state) else {
             return CubePracticeDiagnosis(
                 stage: .firstLayerComplete,
+                goalID: .f2l,
                 title: "두 번째 층 연습",
                 practiceGoal: "첫 층을 보존하며 중간층 엣지를 센터 색에 맞는 슬롯에 삽입하세요.",
                 recommendedCurriculumTrack: .beginner,
@@ -96,6 +119,7 @@ public enum CubePracticeDiagnoser {
         guard isUpCrossOriented(state) else {
             return CubePracticeDiagnosis(
                 stage: .f2lComplete,
+                goalID: .ollEdges,
                 title: "OLL 엣지 방향 연습",
                 practiceGoal: "F2L을 유지하면서 U면 엣지를 먼저 맞춰 십자를 만드세요.",
                 recommendedCurriculumTrack: .twoLookCFOP,
@@ -106,6 +130,7 @@ public enum CubePracticeDiagnoser {
         guard isUpFaceOriented(state) else {
             return CubePracticeDiagnosis(
                 stage: .f2lComplete,
+                goalID: .ollCorners,
                 title: "OLL 코너 방향 연습",
                 practiceGoal: "U면 십자를 유지하면서 네 코너의 방향을 맞추세요.",
                 recommendedCurriculumTrack: .twoLookCFOP,
@@ -116,6 +141,7 @@ public enum CubePracticeDiagnoser {
         guard areUpCornersPermutedModuloAUF(state) else {
             return CubePracticeDiagnosis(
                 stage: .ollComplete,
+                goalID: .pllCorners,
                 title: "PLL 코너 순열 연습",
                 practiceGoal: "완성된 U면 방향을 유지하면서 마지막 층 코너의 위치를 먼저 맞추세요.",
                 recommendedCurriculumTrack: .twoLookCFOP,
@@ -125,10 +151,104 @@ public enum CubePracticeDiagnoser {
 
         return CubePracticeDiagnosis(
             stage: .ollComplete,
+            goalID: .pllEdges,
             title: "PLL 엣지 순열 연습",
             practiceGoal: "맞춰진 코너를 유지하면서 마지막 층 엣지를 순환시켜 완성하세요.",
             recommendedCurriculumTrack: .twoLookCFOP,
             recommendedLessonID: "two-look-pll-complete"
+        )
+    }
+}
+
+public enum CubePracticeComparisonOutcome: String, Codable, Sendable, Equatable {
+    case achieved
+    case improved
+    case unchanged
+    case regressed
+}
+
+public struct CubePracticeComparison: Codable, Sendable, Equatable {
+    public let goal: CubePracticeGoalID
+    public let outcome: CubePracticeComparisonOutcome
+    public let wasAchievedAtStart: Bool
+    public let isAchieved: Bool
+    public let changedFaceletIndices: [Int]
+
+    public init(
+        goal: CubePracticeGoalID,
+        outcome: CubePracticeComparisonOutcome,
+        wasAchievedAtStart: Bool,
+        isAchieved: Bool,
+        changedFaceletIndices: [Int]
+    ) {
+        self.goal = goal
+        self.outcome = outcome
+        self.wasAchievedAtStart = wasAchievedAtStart
+        self.isAchieved = isAchieved
+        self.changedFaceletIndices = changedFaceletIndices
+    }
+}
+
+/// Evaluates a physical before/after scan without producing solving moves.
+public enum CubePracticeGoalEvaluator {
+    public static func isAchieved(_ goal: CubePracticeGoalID, in state: CubeState) -> Bool {
+        switch goal {
+        case .cross:
+            CubePracticeDiagnoser.isDownCrossComplete(state)
+        case .firstLayer:
+            CubePracticeDiagnoser.isFirstLayerComplete(state)
+        case .f2l:
+            CubePracticeDiagnoser.isF2LComplete(state)
+        case .ollEdges:
+            CubePracticeDiagnoser.isF2LComplete(state)
+                && CubePracticeDiagnoser.isUpCrossOriented(state)
+        case .ollCorners:
+            CubePracticeDiagnoser.isF2LComplete(state)
+                && CubePracticeDiagnoser.isUpFaceOriented(state)
+        case .pllCorners:
+            CubePracticeDiagnoser.isF2LComplete(state)
+                && CubePracticeDiagnoser.isUpFaceOriented(state)
+                && CubePracticeDiagnoser.areUpCornersPermutedModuloAUF(state)
+        case .pllEdges:
+            CubePracticeDiagnoser.isF2LComplete(state)
+                && CubePracticeDiagnoser.isUpFaceOriented(state)
+                && CubePracticeDiagnoser.isUpLayerPermutedModuloAUF(state)
+        case .auf:
+            CubePracticeDiagnoser.isSolved(state)
+        }
+    }
+
+    public static func compare(
+        start: CubeState,
+        result: CubeState,
+        goal: CubePracticeGoalID
+    ) -> CubePracticeComparison {
+        let startAchieved = isAchieved(goal, in: start)
+        let resultAchieved = isAchieved(goal, in: result)
+        let outcome: CubePracticeComparisonOutcome
+
+        if resultAchieved {
+            outcome = .achieved
+        } else {
+            let startProgress = progress(toward: goal, in: start)
+            let resultProgress = progress(toward: goal, in: result)
+            if resultProgress.lexicographicallyPrecedes(startProgress) {
+                outcome = .regressed
+            } else if startProgress.lexicographicallyPrecedes(resultProgress) {
+                outcome = .improved
+            } else {
+                outcome = .unchanged
+            }
+        }
+
+        return CubePracticeComparison(
+            goal: goal,
+            outcome: outcome,
+            wasAchievedAtStart: startAchieved,
+            isAchieved: resultAchieved,
+            changedFaceletIndices: zip(start.facelets, result.facelets)
+                .enumerated()
+                .compactMap { index, pair in pair.0 == pair.1 ? nil : index }
         )
     }
 }
@@ -139,7 +259,7 @@ public extension CubeState {
     }
 }
 
-private extension CubePracticeDiagnoser {
+fileprivate extension CubePracticeDiagnoser {
     static let downCorners: [CubeCorner] = [
         .downFrontRight, .downLeftFront, .downBackLeft, .downRightBack,
     ]
@@ -173,6 +293,10 @@ private extension CubePracticeDiagnoser {
             && (1..<4).contains { offset in
                 isUpLayerPermuted(state, by: offset)
             }
+    }
+
+    static func isUpLayerPermutedModuloAUF(_ state: CubeState) -> Bool {
+        (0..<4).contains { isUpLayerPermuted(state, by: $0) }
     }
 
     static func isDownCrossComplete(_ state: CubeState) -> Bool {
@@ -230,5 +354,88 @@ private extension CubePracticeDiagnoser {
         let index = edge.rawValue
         return state.cubies.edgePermutation[index] == edge
             && state.cubies.edgeOrientations[index] == 0
+    }
+}
+
+private extension CubePracticeGoalEvaluator {
+    static func progress(toward goal: CubePracticeGoalID, in state: CubeState) -> [Int] {
+        let solvedDownEdges = CubePracticeDiagnoser.downEdges.count {
+            CubePracticeDiagnoser.isSolved($0, in: state)
+        }
+        let solvedDownCorners = CubePracticeDiagnoser.downCorners.count {
+            CubePracticeDiagnoser.isSolved($0, in: state)
+        }
+        let solvedMiddleEdges = CubePracticeDiagnoser.middleEdges.count {
+            CubePracticeDiagnoser.isSolved($0, in: state)
+        }
+        let orientedUpEdges = [1, 3, 5, 7].count { state.facelets[$0] == .up }
+        let orientedUpCorners = [0, 2, 6, 8].count { state.facelets[$0] == .up }
+
+        switch goal {
+        case .cross:
+            return [solvedDownEdges]
+        case .firstLayer:
+            return [
+                CubePracticeDiagnoser.isDownCrossComplete(state) ? 1 : 0,
+                solvedDownCorners,
+            ]
+        case .f2l:
+            return [
+                CubePracticeDiagnoser.isFirstLayerComplete(state) ? 1 : 0,
+                solvedMiddleEdges,
+            ]
+        case .ollEdges:
+            return [
+                CubePracticeDiagnoser.isF2LComplete(state) ? 1 : 0,
+                orientedUpEdges,
+            ]
+        case .ollCorners:
+            return [
+                CubePracticeDiagnoser.isF2LComplete(state) ? 1 : 0,
+                CubePracticeDiagnoser.isUpCrossOriented(state) ? 1 : 0,
+                orientedUpCorners,
+            ]
+        case .pllCorners:
+            return [
+                CubePracticeDiagnoser.isF2LComplete(state) ? 1 : 0,
+                CubePracticeDiagnoser.isUpFaceOriented(state) ? 1 : 0,
+                bestUpCornerPermutationMatch(in: state),
+            ]
+        case .pllEdges:
+            return [
+                CubePracticeDiagnoser.isF2LComplete(state) ? 1 : 0,
+                CubePracticeDiagnoser.isUpFaceOriented(state) ? 1 : 0,
+                CubePracticeDiagnoser.areUpCornersPermutedModuloAUF(state) ? 1 : 0,
+                bestUpLayerPermutationMatch(in: state),
+            ]
+        case .auf:
+            return [
+                isAchieved(.pllEdges, in: state) ? 1 : 0,
+                zip(state.facelets, CubeState.solved.facelets).count { $0.0 == $0.1 },
+            ]
+        }
+    }
+
+    static func bestUpCornerPermutationMatch(in state: CubeState) -> Int {
+        (0..<4).map { offset in
+            CubePracticeDiagnoser.upCorners.enumerated().count { index, position in
+                state.cubies.cornerPermutation[position.rawValue]
+                    == CubePracticeDiagnoser.upCorners[(index + offset) % 4]
+            }
+        }.max() ?? 0
+    }
+
+    static func bestUpLayerPermutationMatch(in state: CubeState) -> Int {
+        (0..<4).map { offset in
+            let corners = CubePracticeDiagnoser.upCorners.enumerated().count { index, position in
+                state.cubies.cornerPermutation[position.rawValue]
+                    == CubePracticeDiagnoser.upCorners[(index + offset) % 4]
+            }
+            let edges = CubePracticeDiagnoser.upEdges.enumerated().count { index, position in
+                state.cubies.edgePermutation[position.rawValue]
+                    == CubePracticeDiagnoser.upEdges[(index + offset) % 4]
+            }
+            return corners + edges
+        }.max() ?? 0
     }
 }

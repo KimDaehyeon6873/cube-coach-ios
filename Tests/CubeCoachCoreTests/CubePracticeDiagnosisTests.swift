@@ -175,6 +175,234 @@ import Testing
     #expect(recommendationIDs.isSubset(of: releaseLessonIDs))
 }
 
+@Test func everyNonCompleteDiagnosisCarriesItsExactPracticeGoal() throws {
+    let cases: [(CubeState, CubePracticeGoalID)] = [
+        (
+            try legalState(
+                cornerPermutation: swapping(.upRightFront, .downFrontRight),
+                edgePermutation: swapping(.upRight, .downRight)
+            ),
+            .cross
+        ),
+        (
+            try legalState(
+                cornerPermutation: swapping(.upRightFront, .downFrontRight),
+                edgePermutation: swapping(.frontRight, .frontLeft)
+            ),
+            .firstLayer
+        ),
+        (
+            try legalState(
+                edgePermutation: doubleSwap(
+                    (.frontRight, .frontLeft),
+                    (.upRight, .upFront)
+                )
+            ),
+            .f2l
+        ),
+        (
+            try legalState(
+                edgeOrientations: orientations([
+                    (CubeEdge.upRight, 1),
+                    (CubeEdge.upFront, 1),
+                ], count: 12)
+            ),
+            .ollEdges
+        ),
+        (
+            try legalState(
+                cornerOrientations: orientations([
+                    (CubeCorner.upRightFront, 1),
+                    (CubeCorner.upFrontLeft, 2),
+                ])
+            ),
+            .ollCorners
+        ),
+        (
+            try legalState(
+                cornerPermutation: swapping(.upRightFront, .upFrontLeft),
+                edgePermutation: swapping(.upRight, .upFront)
+            ),
+            .pllCorners
+        ),
+        (
+            try legalState(
+                edgePermutation: doubleSwap(
+                    (.upRight, .upFront),
+                    (.upLeft, .upBack)
+                )
+            ),
+            .pllEdges
+        ),
+        (
+            try legalState(
+                cornerPermutation: rotatingTopLayer(CubeCorner.allCases, by: 1),
+                edgePermutation: rotatingTopLayer(CubeEdge.allCases, by: 1)
+            ),
+            .auf
+        ),
+    ]
+
+    for (state, expectedGoal) in cases {
+        #expect(state.practiceDiagnosis.goalID == expectedGoal)
+    }
+    #expect(CubeState.solved.practiceDiagnosis.goalID == nil)
+}
+
+@Test func evaluatesEveryPracticeGoalWithItsRequiredPreservedRegion() throws {
+    let goalFixtures: [(CubePracticeGoalID, CubeState)] = [
+        (
+            .cross,
+            try legalState(
+                cornerPermutation: swapping(.upRightFront, .downFrontRight),
+                edgePermutation: swapping(.frontRight, .frontLeft)
+            )
+        ),
+        (
+            .firstLayer,
+            try legalState(
+                edgePermutation: doubleSwap(
+                    (.frontRight, .frontLeft),
+                    (.upRight, .upFront)
+                )
+            )
+        ),
+        (
+            .f2l,
+            try legalState(
+                cornerOrientations: orientations([
+                    (CubeCorner.upRightFront, 1),
+                    (CubeCorner.upFrontLeft, 2),
+                ])
+            )
+        ),
+        (
+            .ollEdges,
+            try legalState(
+                cornerOrientations: orientations([
+                    (CubeCorner.upRightFront, 1),
+                    (CubeCorner.upFrontLeft, 2),
+                ])
+            )
+        ),
+        (
+            .ollCorners,
+            try legalState(
+                cornerPermutation: swapping(.upRightFront, .upFrontLeft),
+                edgePermutation: swapping(.upRight, .upFront)
+            )
+        ),
+        (
+            .pllCorners,
+            try legalState(
+                edgePermutation: doubleSwap(
+                    (.upRight, .upFront),
+                    (.upLeft, .upBack)
+                )
+            )
+        ),
+        (
+            .pllEdges,
+            try legalState(
+                cornerPermutation: rotatingTopLayer(CubeCorner.allCases, by: 2),
+                edgePermutation: rotatingTopLayer(CubeEdge.allCases, by: 2)
+            )
+        ),
+        (.auf, .solved),
+    ]
+
+    for (goal, state) in goalFixtures {
+        #expect(CubePracticeGoalEvaluator.isAchieved(goal, in: state))
+    }
+
+    let brokenFoundation = try legalState(
+        cornerPermutation: swapping(.downFrontRight, .downLeftFront),
+        edgePermutation: swapping(.downRight, .downFront)
+    )
+    for goal in CubePracticeGoalID.allCases where goal != .cross {
+        #expect(!CubePracticeGoalEvaluator.isAchieved(goal, in: brokenFoundation))
+    }
+}
+
+@Test func pllGoalsAcceptAUFModuloButAufRequiresExactSolvedState() throws {
+    for offset in 1..<4 {
+        let rotated = try legalState(
+            cornerPermutation: rotatingTopLayer(CubeCorner.allCases, by: offset),
+            edgePermutation: rotatingTopLayer(CubeEdge.allCases, by: offset)
+        )
+
+        #expect(CubePracticeGoalEvaluator.isAchieved(.pllCorners, in: rotated))
+        #expect(CubePracticeGoalEvaluator.isAchieved(.pllEdges, in: rotated))
+        #expect(!CubePracticeGoalEvaluator.isAchieved(.auf, in: rotated))
+    }
+    #expect(CubePracticeGoalEvaluator.isAchieved(.auf, in: .solved))
+}
+
+@Test func comparesAchievedImprovedUnchangedAndRegressedAttempts() throws {
+    let twoCrossEdgesSolved = try legalState(
+        edgePermutation: doubleSwap(
+            (.downRight, .upRight),
+            (.downFront, .upFront)
+        )
+    )
+    let threeCrossEdgesSolved = try legalState(
+        cornerPermutation: swapping(.downFrontRight, .upRightFront),
+        edgePermutation: swapping(.downRight, .upRight)
+    )
+    let achieved = CubePracticeGoalEvaluator.compare(
+        start: threeCrossEdgesSolved,
+        result: .solved,
+        goal: .cross
+    )
+    let improved = CubePracticeGoalEvaluator.compare(
+        start: twoCrossEdgesSolved,
+        result: threeCrossEdgesSolved,
+        goal: .cross
+    )
+    let unchanged = CubePracticeGoalEvaluator.compare(
+        start: twoCrossEdgesSolved,
+        result: twoCrossEdgesSolved,
+        goal: .cross
+    )
+    let regressed = CubePracticeGoalEvaluator.compare(
+        start: threeCrossEdgesSolved,
+        result: twoCrossEdgesSolved,
+        goal: .cross
+    )
+
+    #expect(achieved.outcome == .achieved)
+    #expect(achieved.isAchieved)
+    #expect(improved.outcome == .improved)
+    #expect(!improved.changedFaceletIndices.isEmpty)
+    #expect(unchanged.outcome == .unchanged)
+    #expect(unchanged.changedFaceletIndices.isEmpty)
+    #expect(regressed.outcome == .regressed)
+}
+
+@Test func losingAPreservedRegionIsRegressionEvenWhenTargetPiecesImprove() throws {
+    let start = try legalState(
+        cornerOrientations: orientations([
+            (CubeCorner.upRightFront, 1),
+            (CubeCorner.upFrontLeft, 2),
+        ])
+    )
+    let brokenF2L = try legalState(
+        edgePermutation: doubleSwap(
+            (.frontRight, .frontLeft),
+            (.upRight, .upFront)
+        )
+    )
+
+    let comparison = CubePracticeGoalEvaluator.compare(
+        start: start,
+        result: brokenF2L,
+        goal: .ollCorners
+    )
+
+    #expect(comparison.outcome == .regressed)
+    #expect(!comparison.isAchieved)
+}
+
 private let cornerFacelets = [
     [8, 9, 20], [6, 18, 38], [0, 36, 47], [2, 45, 11],
     [29, 26, 15], [27, 44, 24], [33, 53, 42], [35, 17, 51],

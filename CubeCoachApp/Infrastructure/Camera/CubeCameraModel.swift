@@ -5,6 +5,7 @@ import SwiftUI
 public final class CubeCameraModel: ObservableObject {
     @Published public private(set) var availability: CubeCameraAvailability = .idle
     @Published public private(set) var liveRectangleCandidateCount = 0
+    @Published public private(set) var liveCaptureAssessment: CubeLiveCaptureAssessment?
     @Published public private(set) var analysisWarning: String?
     @Published public private(set) var isRunning = false
     @Published public private(set) var isCapturing = false
@@ -16,13 +17,22 @@ public final class CubeCameraModel: ObservableObject {
         self.engine = engine
         engine.onRectangleCandidates = { [weak self] count in
             Task { @MainActor in
-                self?.liveRectangleCandidateCount = count
-                self?.analysisWarning = nil
+                guard let self, self.isRunning else { return }
+                self.liveRectangleCandidateCount = count
+                self.analysisWarning = nil
+            }
+        }
+        engine.onLiveCaptureAssessment = { [weak self] assessment in
+            Task { @MainActor in
+                guard let self, self.isRunning else { return }
+                self.liveCaptureAssessment = assessment
             }
         }
         engine.onVisionAnalysisFailure = { [weak self] in
             Task { @MainActor in
-                self?.analysisWarning = "화면 분석을 다시 시도하고 있어요."
+                guard let self, self.isRunning else { return }
+                self.liveCaptureAssessment = nil
+                self.analysisWarning = "화면 분석을 다시 시도하고 있어요."
             }
         }
     }
@@ -36,6 +46,7 @@ public final class CubeCameraModel: ObservableObject {
         }
 
         #if targetEnvironment(simulator)
+        clearLiveAnalysis()
         availability = .unavailable("시뮬레이터에서는 카메라를 사용할 수 없어요.")
         return
         #else
@@ -53,6 +64,7 @@ public final class CubeCameraModel: ObservableObject {
         }
 
         guard isAuthorized else {
+            clearLiveAnalysis()
             availability = .denied
             return
         }
@@ -64,15 +76,18 @@ public final class CubeCameraModel: ObservableObject {
             availability = .ready
             start()
         } catch let error as CubeCameraSessionError {
+            clearLiveAnalysis()
             availability = .unavailable(error.localizedDescription)
         } catch {
-            availability = .failed("카메라를 준비하지 못했어요. 수동 확인으로 계속할 수 있어요.")
+            clearLiveAnalysis()
+            availability = .failed("카메라를 준비하지 못했어요.\n전개도에 직접 입력할 수 있어요.")
         }
         #endif
     }
 
     public func start() {
         guard availability == .ready else { return }
+        clearLiveAnalysis()
         engine.start()
         isRunning = true
     }
@@ -80,11 +95,24 @@ public final class CubeCameraModel: ObservableObject {
     public func stop() {
         engine.stop()
         isRunning = false
+        clearLiveAnalysis()
     }
+
+    #if DEBUG
+    /// Displays the camera guide against an empty preview in simulator UI QA.
+    /// This never runs in release builds and does not configure capture input.
+    public func showGuidePreviewForUITesting() {
+        clearLiveAnalysis()
+        availability = .ready
+    }
+    #endif
 
     public func capture() async throws -> CubePhotoAnalysis {
         guard availability == .ready else {
             throw CubeCameraSessionError.notReady
+        }
+        guard !isCapturing else {
+            throw CubeCameraSessionError.captureInProgress
         }
         isCapturing = true
         defer { isCapturing = false }
@@ -97,9 +125,32 @@ public final class CubeCameraModel: ObservableObject {
         guard availability == .ready else {
             throw CubeCameraSessionError.notReady
         }
+        guard !isCapturing else {
+            throw CubeCameraSessionError.captureInProgress
+        }
         isCapturing = true
         defer { isCapturing = false }
         return try await engine.capturePhoto(pose: pose)
+    }
+
+    /// Captures the requested face head-on using its standard top-edge
+    /// orientation and the central square portrait guide.
+    public func capture(face: CubeFace) async throws -> CubePhotoAnalysis {
+        guard availability == .ready else {
+            throw CubeCameraSessionError.notReady
+        }
+        guard !isCapturing else {
+            throw CubeCameraSessionError.captureInProgress
+        }
+        isCapturing = true
+        defer { isCapturing = false }
+        return try await engine.capturePhoto(face: face)
+    }
+
+    private func clearLiveAnalysis() {
+        liveRectangleCandidateCount = 0
+        liveCaptureAssessment = nil
+        analysisWarning = nil
     }
 }
 
